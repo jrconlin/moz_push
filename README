@@ -1,0 +1,85 @@
+PUSH NOTIFICATIONS
+
+Requirements:
+-------------
+Make sure you have the following software already
+installed before proceeding:
+
+- Erlang runtime R14B+ or newer
+- Make
+- Python 2.6 (with virtualenv installed)
+
+Note to users of RHEL 5 and derived distributions (e.g. CentOS 5):
+Due to the EPEL package update policy, EPEL 5 contains Erlang version
+R12B-5, which is relatively old. rabbitmq-server supports R12B-5,
+but performance may be lower than for more recent Erlang versions,
+and certain non-core features are not supported (SSL support, 
+HTTP-based plugins). Therefore, we recommend that you install the most
+recent stable version of Erlang. The easiest way to do this is to use a
+package repository provided for this purpose by the owner of the EPEL
+Erlang package. Enable it by invoking (as root):
+
+wget -O /etc/yum.repos.d/epel-erlang.repo http://repos.fedorapeople.org/repos/peter/erlang/epel-erlang.repo
+
+and then install or update erlang with yum install erlang. 
+
+Note: RabbitMQ was selected to address the message persistance issues. Sadly,
+ZeroMQ does not offer message persistance across app/server reboots.
+
+
+Installation:
+-------------
+Make sure any currently running rabbitmq server (if there
+is one) is stopped before continuing.
+
+After downloading the repository for the first time, 
+cd into the directory and run make.
+
+This will do the following:
+- Create a virtual python environment 
+- Install required python packages into this environment
+- Fetch the rabbitmq server and set up a configuration
+- Install rabbitmq plugins
+
+After make completes all of these tasks, if it hasn't
+terminated with an error then everything should be set.
+
+The default RabbitMQ configuration is designed not to
+interfere with any other rabbitmq server installed on the
+system (so long as a previous installation has not set any
+environment variables used by the server).
+
+In addition, you'll need to start the rabbitmq server and do the following:
+* Create a new Exchange called "incoming_exchange" (type: direct, durable, VHost: /)
+* 
+
+
+
+
+Running the Server:
+-------------------
+The message broker (used by the server to route messages)
+and the HTTP server must be started separately. The steps
+are (starting from the root project directory)
+
+1. Run "./bin/rabbitmq-server/sbin/rabbitmq-server"
+   to start the message broker. 
+   To shut it down at any point in the future, run 
+   "./bin/rabbitmq-server/sbin/rabbitmqctl stop"
+
+2. Run "bin/paster serve development.ini" to start the
+   POST Office and Client Agent HTTP server.
+
+Monitoring the Server:
+----------------------
+You can monitor the RabbitMQ server once it has started by 
+navigating to http://localhost:55672/mgmt in a browser (if 
+you're using the out-of-the-box configuration). This takes
+you to the RabbitMQ Management web console, which itself is
+relatively self-explanatory. Note that this should really 
+only be used for development purposes, as having the 
+management console running can reduce througput.
+You can read more about the Management plugin here:
+http://www.rabbitmq.com/management.html
+
+

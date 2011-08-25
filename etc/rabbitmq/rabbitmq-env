@@ -1,0 +1,36 @@
+#!/bin/sh
+# This script is used as a replacement for the rabbitmq-env script
+# that is included in the sbin directory of rabbitmq-server. It
+# Allows us to specify the location of the environment configuration
+# file ourselves, rather than it defaulting to searching the global
+# /etc/rabbitmq folder for one. It expects that the script it is
+# replacing is located in <PROJECT_DIR>/bin/rabbitmq-server/sbin, and
+# that the rabbitmq.conf file it points to is located in
+# <PROJECT_DIR>/etc/rabbitmq
+
+# Determine where this script is really located
+SCRIPT_PATH="$0"
+while [ -h "$SCRIPT_PATH" ] ; do
+    FULL_PATH=`readlink -f $SCRIPT_PATH 2>/dev/null`
+    if [ "$?" != "0" ]; then
+      REL_PATH=`readlink $SCRIPT_PATH`
+      if expr "$REL_PATH" : '/.*' > /dev/null; then
+        SCRIPT_PATH="$REL_PATH"
+      else
+        SCRIPT_PATH="`dirname "$SCRIPT_PATH"`/$REL_PATH"
+      fi
+    else
+      SCRIPT_PATH=$FULL_PATH
+    fi
+done
+
+SCRIPT_DIR=`dirname $SCRIPT_PATH`
+RABBITMQ_HOME="${SCRIPT_DIR}/.."
+[ "x" = "x$HOSTNAME" ] && HOSTNAME=`env hostname`
+NODENAME=rabbit@${HOSTNAME%%.*}
+
+# Modified location of conf file
+LOCAL_CONFIG="${RABBITMQ_HOME}/../../etc/rabbitmq/rabbitmq.conf"
+
+# Load configuration from the rabbitmq.conf file
+[ -f "${LOCAL_CONFIG}" ] && . "${LOCAL_CONFIG}"
