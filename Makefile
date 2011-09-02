@@ -2,6 +2,7 @@ VIRTUALENV = virtualenv
 PYTHON = bin/python
 PIP = bin/pip
 EZ = bin/easy_install
+NOSE = bin/nosetests -s --with-xunit
 
 # Broker configuration
 BROKER_VHOST = /
@@ -22,9 +23,6 @@ env:
 
 clean-env:
 	rm -rf bin build deps include lib lib64S
-
-zeromq:
-	# you may need to run sudo ldconfig if this reports that libzmq is not found
 
 rabbitmq:
 	mkdir -p bin
@@ -49,3 +47,5 @@ clean-rabbitmq:
 
 clean:	clean-rabbitmq clean-env 
 
+test: 
+	$(NOSE) notifserver/tests

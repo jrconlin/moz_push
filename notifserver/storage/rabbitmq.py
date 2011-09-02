@@ -53,7 +53,7 @@ class RabbitMQStorage(object):
     connection = None
     channel = None
 
-    channel_info = None
+    channel_info = {}
 
     def __init__(self, **config):
         self.config = config
@@ -74,6 +74,7 @@ class RabbitMQStorage(object):
         logger.info("Message Broker Virtual Host: %s" % self.broker_vhost)
 
         # Create connection parameters object for easy reuse
+        import pdb; pdb.set_trace()
         self.conn_params = pika.ConnectionParameters(
             credentials=pika.PlainCredentials(
                 self.broker_user,
@@ -110,12 +111,17 @@ class RabbitMQStorage(object):
         return self.connection
 
     def _get_blocking_amqp_conn(self):
-        return pika.BlockingConnection(self.conn_params)
+        try:
+            return pika.BlockingConnection(self.conn_params)
+        except Exception, e:
+            logger.error("Could not connect to amqp server %s", e.message)
+            raise NotifServerException("Could not connect to server")
 
     def _get_http_conn(self):
         return self.http_conn
 
     def create_client_queue(self, username):
+        self.channel_info = {}
         self.channel_info['exchange_name'] = username
         self.channel_info['queue_name'] = "%x" % random.getrandbits(256)
 
@@ -132,9 +138,10 @@ class RabbitMQStorage(object):
         try:
             channel = conn.channel()
 
-            logger.debug("Declaring exchange %s", user_exchange_name)
+            logger.debug("Declaring exchange %s",
+                        self.channel_info.get('exchange_name'))
             channel.exchange_declare(
-                exchange=user_exchange_name,
+                exchange=self.channel_info.get('exchange_name'),
                 durable=True,
                 type='fanout',
             )
@@ -144,14 +151,14 @@ class RabbitMQStorage(object):
 
             logger.debug("Binding queue %s to exchange %s",
                 client_queue_name,
-                user_exchange_name,
+                self.channel_info.get('exchange_name'),
             )
             channel.queue_bind(
-                exchange=user_exchange_name,
+                exchange=self.channel_info.get('exchange_name'),
                 queue=client_queue_name,
             )
-        except:
-            logger.error("Error creating new client queue")
+        except Exception, e:
+            logger.error("Error creating new client queue. %s" % e.message)
             raise NotifStorageException('Cannot create new client')
         finally:
             logger.debug("Closing AMQP connection to broker")
@@ -175,6 +182,7 @@ class RabbitMQStorage(object):
             token,
         )
 
+
     def _add_binding(self, source_exch, dest_exch, routing_key):
         # XXX: OH EM GEE this is a hack. Creating Exchange-to-exchange (E2E)
         # bindings is a RabbitMQ-specific extension, so the pika AMQP
@@ -183,6 +191,7 @@ class RabbitMQStorage(object):
         #
         # To do this properly, we'll probably have to roll our own version
         # of Pika which supports the exchange.bind method call.
+        import pdb; pdb.set_trace()
         http_conn = self._get_http_conn()
         try:
             auth_headers = {
@@ -297,6 +306,7 @@ class RabbitMQStorage(object):
             conn.disconnect()
 
     def publish_message(self, message, token):
+        """ send a message to a specific device. (1:1) """
         conn = self._get_blocking_amqp_conn()
         try:
             channel = conn.channel()
@@ -325,6 +335,7 @@ class RabbitMQStorage(object):
             conn.disconnect()
 
     def queue_message(self, message, queue_name):
+        """ send a message to a specific outbound queue (1:1) """
         conn = self._get_blocking_amqp_conn()
         try:
             channel = conn.channel()
@@ -349,8 +360,9 @@ class RabbitMQStorage(object):
             conn.disconnect()
 
     def send_broadcast(self, message, username):
+        """ Send a message to all queues associated
+        with the username exchange (1:N)"""
         user_exchange_name = username
-
         conn = self._get_blocking_amqp_conn()
         try:
             channel = conn.channel()
@@ -380,13 +392,12 @@ class RabbitMQStorage(object):
             conn.disconnect()
 
     def get_pending_messages(self, username = None):
-        import pdb; pdb.set_trace()
         result = []
         if username is None:
             return result
         username = str(username)
         connection = self._get_blocking_amqp_conn()
-
+        import pdb; pdb.set_trace()
         try:
             channel = connection.channel()
             logger.debug("Connecting to %s ", username)
@@ -404,6 +415,7 @@ class RabbitMQStorage(object):
                     return result
                 else:
                     result.append(body)
+                #channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception, e:
             logger.error("Crapsticks: %s" % str(e))
 
@@ -445,8 +457,7 @@ class RabbitMQStorage(object):
 
                 def handle_delivery(self, channel, method, header, body):
                     # publish the item.
-                    pdb.set_trace();
-                    print body
+                    # print body
                     callback(channel=channel,
                              method=method,
                              header=header,

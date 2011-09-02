@@ -39,17 +39,19 @@ import base64
 import json
 import logging
 
-from services.util import convert_config, json_response
-from webob.dec import wsgify
-from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
+import pdb
 
+from services.util import convert_config, json_response
+from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
+from webob import Response
+from notifserver import VERSION
+from notifserver.controllers import BaseController
 from notifserver.storage import get_message_backend
 
 
 logger = logging.getLogger('clientagent')
 
-
-class ClientAgent(object):
+class ClientAgent(BaseController):
     """Carries out actions on behalf of clients.
 
     Handles all user/client registration with the server, as well as
@@ -57,40 +59,26 @@ class ClientAgent(object):
 
     """
 
-    def __init__(self, config):
+    def _init(self, config):
         self.msg_backend = get_message_backend(config)
-        self.post_urls = {
-            '/1.0/new_queue': self.new_queue,
-            '/1.0/new_subscription': self.new_subscription,
-            '/1.0/remove_subscription': self.remove_subscription,
-            '/1.0/broadcast': self.broadcast,
-        }
-
-    @wsgify
-    def __call__(self, request):
-        path = request.path
-        verb = request.method
-
-        # TODO: Use routes (although the utility would be very small given the
-        # few number of paths we actually support)
-        if verb == 'POST':
-            if path in self.post_urls:
-                return self.post_urls[path](request)
-
-        raise HTTPBadRequest("API request %s %s not supported" % (verb, path))
 
     def new_queue(self, request):
+        """ Create a new queue for the user. (queues hold subscriptions) """
         username = request.environ['REMOTE_USER']
+        self._init(self.app.config)
 
         try:
             result = self.msg_backend.create_client_queue(username)
             return json_response(result)
-        except:
-            logger.error("Error creating client queue")
-            raise
+        except Exception, e:
+            pdb.set_trace()
+            logger.error("Error creating client queue %s", str(e))
+            raise HTTPInternalServerError
 
     def new_subscription(self, request):
+        """ Generate a new subscription ID for the user's queue. """
         username = request.environ['REMOTE_USER']
+        self._init(self.app.config)
 
         try:
             logger.debug("New subscription request: '%s'", request.body)
@@ -112,10 +100,12 @@ class ClientAgent(object):
             return HTTPOk()
         except:
             logger.error("Error creating subscription.")
-            raise
+            raise HTTPInternalServerError()
 
     def remove_subscription(self, request):
+        """ Remove a subscription from a user's queue. """
         username = request.environ['REMOTE_USER']
+        self._init(self.app.config)
 
         try:
             logger.debug("Remove subscription request: '%s'", request.body)
@@ -137,10 +127,13 @@ class ClientAgent(object):
             return HTTPOk()
         except:
             logger.error("Error deleting subscription")
-            raise
+            raise HTTPInternalServerError()
 
     def broadcast(self, request):
+        """ Unused? """
+        import pdb;pdb.set_trace()
         username = request.environ['REMOTE_USER']
+        self._init(self.app.config)
 
         try:
             logger.debug("Broadcast request: '%s'", request.body)
@@ -162,13 +155,15 @@ class ClientAgent(object):
 
         try:
             self.msg_backend.send_broadcast(request.body, username)
+            return HTTPOk()
         except:
             logger.error("Error sending broadcast message to user '%s'", username)
-            raise
+            raise HTTPInternalServerError()
 
-
+"""
 def make_client_agent(global_config, **local_config):
     config = global_config.copy()
     config.update(local_config)
     params = convert_config(config)
     return ClientAgent(params)
+"""

@@ -11,7 +11,7 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is the Mozilla Push Notifications Server. 
+# The Original Code is the Mozilla Push Notifications Server.
 #
 # The Initial Developer of the Original Code is
 # Mozilla Corporation.
@@ -35,3 +35,35 @@
 #
 # ***** END LICENSE BLOCK *****
 
+from services.auth.dummy import DummyAuth
+
+class FakeRequest(object):
+    """
+     Fake request object for testing only
+    """
+
+    def __init__(self,
+                 path="/",
+                 environ=None,
+                 post=None,
+                 get=None,
+                 host="localhost:80",  # match UnitTest's fake localhost
+                 **kw):
+        self.path_info = path
+        self.environ = environ or {}
+        self.POST = post or {}
+        self.params = get or {}
+        self.params.update({'audience': 'test.example.org'})
+        self.host = host
+
+
+class FakeAuthTool(DummyAuth):
+    """
+    Fake Auth tool returns invalid for any password containing "bad"
+    The username is hashed by this point.
+    """
+
+    def authenticate_user(self, *userpass):
+        if "bad" in userpass[1]:
+            return None
+        return 'test_api_1'

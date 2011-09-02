@@ -93,8 +93,10 @@ class WebSocket:
                 import pdb; pdb.set_trace()
                 raise
 
-        def mask(self, raw_data, mask):
+        #TODO: Make this an passthrough filter.
+        def _mask(self, raw_data, mask):
             io_stream = BytesIO(raw_data)
+            # TODO: Check that this is correct (ideally mask ints)
             mbytes = [(mask & (0xFF << 0)) >> 0,
                       (mask & (0xFF << 8)) >> 8,
                       (mask & (0xFF << 16)) >> 16,
@@ -105,10 +107,11 @@ class WebSocket:
                 char = io_stream.read(1)
                 while char:
                     output.write(char ^ (mask & mbytes[pos % 4]))
+                    pos = pos + 1;
                     char = io_stream.read(1)
             except IOError:
                 pass
-            return data
+            return output
 
         code2frame = {0x0: 'Continuation',
                       0x1: 'Text',
@@ -143,17 +146,45 @@ class WebSocket:
                 if frame['is_masked']:
                     frame['mask'] = self.socket.read(4)
                 data = self.socket.read(frame['size'])
-                frame['data'] = self.mask(frame['mask'], data)
+                frame['data'] = self._mask(frame['mask'], data)
                 return frame
             except IOError, e:
                 raise WebSocketException('Error reading data from socket')
 
         def write_frame(self, frame):
-            if frame is None:
-                return
-            if not isinstance(frame, object):
-                raise WebSocketException('Frame should be a dictionary object')
-            data = BytesIO()
-            frame_size = len(frame['data'])
-            data.write('0x82')  #collapse this to Finished, BINARY type
-            frame_size =
+            try:
+                if frame is None:
+                    return
+                if not isinstance(frame, object):
+                    raise WebSocketException('Frame should be a dictionary object')
+                frame_size = len(frame['data'])
+                has_mask = 0x80
+                self.socket.write('0x82')
+                if frame_size < 0x7D:
+                    self.socket.write(has_mask | frame_size)
+                elif frame_size < 0xFFFFFF:
+                    self.socket.write(has_mask & 0x7E)
+                    self.socket.write(struct.pack('!H', frame_size))
+                else:
+                    self.socket.write(has_mask & 0x7F)
+                    self.socket.write(struct.pack('!Q', frame_size))
+                if has_mask:
+                    self.socket.write(self._mask(frame['data'], 0xFFFFFFFF))
+                else:
+                    self.socket.write(frame['data'])
+                self.socket.flush()
+                return True;
+            except IOError, e:
+                raise WebSocketException('Error writing data')
+
+        def handle_socket(self, request):
+            #TODO: Finish this.
+            """ handle a new websocket request. See Tarek's redbarrel work
+            along with gevent.socket.
+
+            The goal here is to provide a poll-like response. Accept new
+            data, return existing queued data, drop connection. client goes
+            and waits for a bit. Repeat.
+
+            """
+            raise WebSocketException('Requires Implementation')

@@ -42,7 +42,6 @@ from mako.template import Template
 from services.util import convert_config
 from services.pluginreg import _resolve_name
 from webob import Response
-from webob.dec import wsgify
 from webob.exc import HTTPAccepted, HTTPBadRequest
 from notifserver.controllers import BaseController
 from notifserver.storage import get_message_backend
