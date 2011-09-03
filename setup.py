@@ -10,6 +10,7 @@ setup(
         'PasteScript',
         'distribute',
         'gunicorn',
+        'pymongo',
         'mako',
         'nose',
         'pika',

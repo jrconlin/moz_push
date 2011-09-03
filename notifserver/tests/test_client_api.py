@@ -142,7 +142,7 @@ class ClientAgentTest(unittest.TestCase):
         self.set_credentials(self.config.get('tests.user',"testuser"),
                              self.config.get('tests.password', "mypassword"))
         queue_info = self.create_queue()
-        self.send_broadcast('{"body":"test message", "HMAC": ""}')
+        self.send_broadcast('{"body": "test message", "HMAC": ""}')
         import pdb; pdb.set_trace()
         backend = get_message_backend(self.config)
         messages = backend.get_pending_messages(self.config.get('tests.user'))

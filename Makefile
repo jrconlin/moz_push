@@ -11,7 +11,7 @@ BROKER_ADMIN_PASSWORD = admin
 
 .PHONY:	all env rabbitmq
 
-all:	env rabbitmq
+all:	env
 
 env:
 	rm -rf bin build deps include lib lib64

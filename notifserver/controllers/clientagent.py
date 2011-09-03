@@ -130,7 +130,6 @@ class ClientAgent(BaseController):
             raise HTTPInternalServerError()
 
     def broadcast(self, request):
-        """ Unused? """
         import pdb;pdb.set_trace()
         username = request.environ['REMOTE_USER']
         self._init(self.app.config)

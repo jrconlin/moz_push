@@ -90,7 +90,8 @@ class ServerEventController(BaseController):
 
         import pdb; pdb.set_trace()
         items =self.msg_backend.get_pending_messages(
-                    request.sync_info.get('usertoken'))
+                    request.sync_info.get('usertoken'),
+                    request.sync_info.get('since', None))
         body= '/*' + json.dumps(items)
         response = Response(str(body))
         response.headers.add('Content-Type', 'application/json')
