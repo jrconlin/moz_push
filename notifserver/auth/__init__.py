@@ -11,7 +11,7 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is the Mozilla Push Notifications Server. 
+# The Original Code is the Mozilla Push Notifications Server.
 #
 # The Initial Developer of the Original Code is
 # Mozilla Corporation.
@@ -37,10 +37,10 @@
 
 import logging
 
-from services.auth import get_auth 
-from services.util import convert_config
+from services.auth import get_auth
+from services.config import Config
 from webob.dec import wsgify
-from webob.exc import HTTPUnauthorized 
+from webob.exc import HTTPUnauthorized
 
 logger = logging.getLogger('auth')
 
@@ -48,7 +48,7 @@ class BasicAuthMiddleware(object):
     """Wraps a WSGI app so that authentication is required."""
 
     def __init__(self, app, realm, config):
-        self.app = app 
+        self.app = app
         self.auth = get_auth(config)
         self.realm = realm
 
@@ -60,7 +60,7 @@ class BasicAuthMiddleware(object):
             raise HTTPUnauthorized(headerlist=headers)
         else:
             logger.debug("Authorized user '%s'", request.environ['REMOTE_USER'])
-            return self.app 
+            return self.app
 
     def authorized(self, request):
         if 'authorization' not in request.headers:
@@ -82,8 +82,8 @@ class BasicAuthMiddleware(object):
 
 def make_basic_auth(app, global_config, realm, **local_config):
     """App factory function for integration with Paste."""
-    config = global_config.copy()
-    config.update(local_config)
-    params = convert_config(config)
-    return BasicAuthMiddleware(app, realm, params)
+    gconfig = global_config.copy()
+    gconfig.update(local_config)
+    config = Config(cfgdict = gconfig)
+    return BasicAuthMiddleware(app, realm, config)
 

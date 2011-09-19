@@ -4,17 +4,19 @@ import time
 import os
 
 from services.tests.support import TestEnv
+from services.config import Config
 from notifserver.storage import get_message_backend
 from notifserver.wsgiapp import make_app
 from webtest import TestApp
 
-class TestStoreage(unittest.TestCase):
+class TestStorage(unittest.TestCase):
 
     def setUp(self):
-        env = TestEnv(os.path.realpath(__file__))
-        self.config = env.config
+        env = TestEnv(ini_dir = os.path.dirname(os.path.realpath(__file__)))
+        test_cfg = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                     'tests.conf')
+        self.config = Config(cfgfile = test_cfg)
 
-        self.appdir = env.topdir
         self.app = TestApp(make_app(self.config))
         self.app.reset()
 
@@ -31,10 +33,9 @@ class TestStoreage(unittest.TestCase):
                                                 "ciphertext": "test",
                                                 "ttl": 1}),
                                    "HMAC": "123abc"})
-
-        import pdb; pdb.set_trace()
         queue_info = storage.create_client_queue(username)
-        create_subscription(username, test_token)
+
+        storage.create_subscription(username, test_token)
         storage.send_broadcast(test_message, username)
         msgs = storage.get_pending_messages(username)
         storage.purge()
@@ -42,4 +43,3 @@ class TestStoreage(unittest.TestCase):
                                 test_token)
         msgs = storage.get_pending_messages(username)
         storage.delete_subscription(username, test_token)
-        print 'yay!'

@@ -38,10 +38,12 @@
 import json
 import os
 import unittest
+import time
 
 from webtest import TestApp
 
 from services.tests.support import TestEnv
+from services.config import Config
 from notifserver.tests import FakeAuthTool
 from notifserver import VERSION
 from notifserver.wsgiapp import make_app
@@ -57,10 +59,11 @@ class ClientAgentTest(unittest.TestCase):
     """
 
     def setUp(self):
-        env = TestEnv(os.path.realpath(__file__))
-        self.config = env.config
-
-        self.appdir = env.topdir
+        env = TestEnv(ini_dir = os.path.dirname(os.path.realpath(__file__)))
+        test_cfg = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                     'tests.conf')
+        self.config = Config(cfgfile = test_cfg)
+        #self.appdir = env.topdir
         self.app = TestApp(make_app(self.config))
         self.app.reset()
 
@@ -94,7 +97,7 @@ class ClientAgentTest(unittest.TestCase):
             message = "'this is a broadcast message'"
 
         self.set_credentials("testuser", "mypassword")
-        res = self.app.post("/%s/broadcast" % VERSION,
+        self.app.post("/%s/broadcast" % VERSION,
             message,
             extra_environ={'REMOTE_USER': self.username})
 
@@ -138,12 +141,23 @@ class ClientAgentTest(unittest.TestCase):
             pass
 
     def test_broadcasts(self):
-        import pdb; pdb.set_trace()
         self.set_credentials(self.config.get('tests.user',"testuser"),
                              self.config.get('tests.password', "mypassword"))
         queue_info = self.create_queue()
-        self.send_broadcast('{"body": "test message", "HMAC": ""}')
-        import pdb; pdb.set_trace()
+        ciphertext = 'test_12345'
+        self.send_broadcast(
+            json.dumps({"body":
+                            json.dumps({"token": queue_info.get('queue_id'),
+                                        "timestamp": int(time.time()),
+                                        "ciphertext": ciphertext,
+                                        "ttl": 1}),
+                        "HMAC": ""}))
         backend = get_message_backend(self.config)
         messages = backend.get_pending_messages(self.config.get('tests.user'))
-        print messages;
+        self.assertEqual(json.loads(
+                    json.loads(messages[0]).get('body')).get('ciphertext'),
+                         ciphertext)
+        #wait for the message to expire.
+        time.sleep(2)
+        messages = backend.get_pending_messages(self.config.get('tests.user'))
+        self.assertEqual(len(messages), 0)

@@ -17,23 +17,26 @@ class MongoStorage(object):
 
     def __init__(self, **config):
         self.config = config
-        self.db_host = self.config.get('host', 'localhost')
-        self.db_port = int(self.config.get('port', '27017'))
-        self.db_name = self.config.get('database', 'notif')
+        self.db_host = self.config.get('mongo.host', 'localhost')
+        self.db_port = int(self.config.get('mongo.port', '27017'))
+        self.db_name = self.config.get('mongo.database', 'notif')
         self.mongo = pymongo.Connection(host = self.db_host,
                                      port = self.db_port
                                      )
         self.db = self.mongo[self.db_name]
         """ schemas:
         mapping:
-        _id : unique post id
-        user_id: user's id.
+        token : unique token id
+        type: type of token (queue, subscription, user)
+        user_id: user's id
+        created: time created
         """
         """
         messages:
         _id :
         user_id :   user's id
         origin : origin ID
+        message: message body
         expry : Expiration (TTL for message + current time)
         """
 
@@ -41,19 +44,26 @@ class MongoStorage(object):
     def get_name(cls):
         return 'mongo'
 
+    def new_token(self):
+        return "%x" % random.getrandbits(256)
+
     def create_client_queue(self, username):
         # create the mapping record
 
-        channel_info = {u'_id': username,
+        channel_info = {u'token': new_token(),
+                        u'user_id': username,
+                        u'type': 'queue',
                         u'created': int(time.time())
                         }
 
         logger.info("Creating incoming queue %s for user %s",
-                    channel_info.get('_id'),
+                    channel_info.get('token'),
                     username)
         try:
             self.db.user.insert(channel_info, safe=True)
-            return { 'queue_id': channel_info['_id']}
+            return { 'queue_id': channel_info['token'],
+                    'host': self.config.get('notifserver.host'),
+                    'port': self.config.get('notifserver.port')}
 
         except OperationFailure:
             logger.error('Could not create mapping: %s' % str(e))
@@ -61,8 +71,10 @@ class MongoStorage(object):
 
     def create_subscription(self, username, token):
         """Map token to username"""
-        mapping_info = {'_id': token,
-                        'user': username}
+        mapping_info = {u'token': token,
+                        u'user_id': username,
+                        u'type': 'sub',
+                        u'created': int(time.time())}
 
         try:
             self.db.mapping.insert(mapping_info, safe=True)
@@ -72,9 +84,9 @@ class MongoStorage(object):
             return False
 
     def delete_subscription(self, username, token):
-
         try:
-            self.db.mapping.remove({u'_id': token})
+            self.db.mapping.remove({u'token': token,
+                                    u'user_id': username})
             self.db.user.remove({'user_id': username,
                                  'origin': token})
             return True
@@ -85,7 +97,8 @@ class MongoStorage(object):
 
     def _resolve_token(self, token):
         try:
-            mapping = self.db.mapping.get(token)
+            mapping = self.db.mapping.get({u'token': token,
+                                           u'type': 'sub'})
             if mapping is None or mapping.get('user', None) is None:
                 return None
             return mapping.get('user')
@@ -103,16 +116,23 @@ class MongoStorage(object):
         return self.send_broadcast(message, user)
 
     def queue_message(self, message, queue_name):
-        return self.publish_message(message, queue_name)
+        channel_info = self.db.user.get_one({u'token': queue_name,
+                                             u'type': 'queue'})
+        if channel_info is None:
+            logger.warn("No user for queue %s" % queue_name)
+            return False
+        return self.publish_message(message, channel_info.get('user_id'))
 
     def send_broadcast(self, message, username):
         msg_content = {}
-        ttl = int(self.config.get('max_ttl_seconds', '259200')) # 3 days
+        ttl = int(self.config.get('notif_server.max_ttl_seconds',
+                                  '259200')) # 3 days
         try:
             msg_content = json.loads(message)
             ttl = msg_content.get('ttl', ttl)
-            self.db.user.save({u'user_id': mapping.get('user'),
+            self.db.message.save({u'user_id': mapping.get('user'),
                            'origin': token,
+                           'message': message,
                            'expry': int(time.time() + ttl)})
             #TODO:: Add in notification to tickle listening clients (if desired)
         except OperationError, e:

@@ -41,7 +41,7 @@ import logging
 
 import pdb
 
-from services.util import convert_config, json_response
+from services.formatters import json_response
 from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
 from webob import Response
 from notifserver import VERSION
@@ -130,7 +130,6 @@ class ClientAgent(BaseController):
             raise HTTPInternalServerError()
 
     def broadcast(self, request):
-        import pdb;pdb.set_trace()
         username = request.environ['REMOTE_USER']
         self._init(self.app.config)
 

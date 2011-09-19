@@ -1,15 +1,13 @@
 """
 Application entry point.
 """
-from beaker.middleware import SessionMiddleware
 from notifserver import VERSION
 from notifserver.controllers.postoffice import PostOfficeController
 from notifserver.controllers.sse import ServerEventController
 from notifserver.controllers.clientagent import ClientAgent
 from notifserver.auth.basic import NotifServerAuthentication
 from services.baseapp import set_app, SyncServerApp
-
-
+from beaker.middleware import SessionMiddleware
 
 urls = [
         ## private

@@ -39,7 +39,6 @@ import json
 import logging
 
 from mako.template import Template
-from services.util import convert_config
 from services.pluginreg import _resolve_name
 from webob import Response
 from webob.exc import HTTPAccepted, HTTPBadRequest

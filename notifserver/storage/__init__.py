@@ -37,8 +37,7 @@
 
 import abc
 import logging
-from services.pluginreg import PluginRegistry
-from services.util import filter_params
+from services.pluginreg import (PluginRegistry, load_and_configure)
 
 # Use this logger for all MessageStorage plugins
 logger = logging.getLogger('messagestorage')
@@ -55,6 +54,10 @@ class NotifStorageException (Exception):
 class MessageStorage(PluginRegistry):
     """Abstract definition of all message store implementations."""
     plugin_type = 'messagestorage'
+
+    @abc.abstractmethod
+    def new_token(self):
+        """Returns a new token consistent with the storage system index."""
 
     @abc.abstractmethod
     def get_name(self):
@@ -155,17 +158,4 @@ class MessageStorage(PluginRegistry):
         """
 
 def get_message_backend(config):
-    try:
-        from notifserver.storage.rabbitmq import RabbitMQStorage
-        MessageStorage.register(RabbitMQStorage)
-    except ImportError:
-        pass
-
-    try:
-        from notifserver.storage.memory import MemoryStorage
-        MessageStorage.register(MemoryStorage)
-    except ImportError:
-        pass
-
-    return MessageStorage.get_from_config(config=
-                                          filter_params('notifserver', config))
+    return load_and_configure(config, cls_param = "notifserver.backend")

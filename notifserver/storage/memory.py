@@ -11,7 +11,7 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is the Mozilla Push Notifications Server. 
+# The Original Code is the Mozilla Push Notifications Server.
 #
 # The Initial Developer of the Original Code is
 # Mozilla Corporation.
@@ -49,17 +49,20 @@ class MemoryStorage(object):
     """
 
     def __init__(self, **config):
-        self.broker_host = config['host']
-        self.broker_port = config['amqp_port']
+        self.broker_host = config['memory.host']
+        self.broker_port = config['memory.memory_port']
 
         self.mutex = threading.Lock()
         self.subToUser = {}
-        self.userToQueues = {} 
+        self.userToQueues = {}
         self.queues = {}
 
     @classmethod
     def get_name(cls):
         return 'memory'
+
+    def new_token(self):
+        return "%s" % random.getrandbits(256)
 
     def create_client_queue(self, username):
         self.mutex.acquire()
@@ -67,11 +70,11 @@ class MemoryStorage(object):
         self._ensure_user_exists(username)
 
         # TODO: Probably unnecessary, but make sure the queue name isn't taken
-        queue_name = "%x" % random.getrandbits(256)
+        queue_name = new_token()
 
         logger.info("Creating queue %s for user %s", queue_name, username)
 
-        self.userToQueues[username].append(queue_name) 
+        self.userToQueues[username].append(queue_name)
         self.queues[queue_name] = Queue()
 
         self.mutex.release()
@@ -84,7 +87,7 @@ class MemoryStorage(object):
 
     def _ensure_user_exists(self, username):
         if username not in self.userToQueues:
-            self.userToQueues[username] = [] 
+            self.userToQueues[username] = []
 
     def create_subscription(self, username, token):
         logger.info("Creating subscription '%s' for user '%s'" % (token, username))
@@ -104,10 +107,10 @@ class MemoryStorage(object):
         logger.info("Deleting subscription '%s' for user '%s'" % (token, username))
 
         with self.mutex:
-            self._ensure_user_exists(username) 
+            self._ensure_user_exists(username)
 
             if token not in self.subToUser:
-                raise Exception("Subscription token '%s' does not exist" % token) 
+                raise Exception("Subscription token '%s' does not exist" % token)
 
             del self.subToUser[token]
 
@@ -121,7 +124,7 @@ class MemoryStorage(object):
             username = self.subToUser[token]
 
             self._ensure_user_exists(username)
-            
+
             # Deliver message to each of the user's queues
             for queue_name in self.userToQueues[username]:
                 self.queues[queue_name].put(message)
@@ -141,7 +144,7 @@ class MemoryStorage(object):
         with self.mutex:
             if username not in self.userToQueues:
                 raise Exception("User '%s' has no queues" % username)
-            
+
             # Deliver message to each of the user's queues
             for queue_name in self.userToQueues[username]:
                 self.queues[queue_name].put(message)
@@ -159,4 +162,3 @@ class MemoryStorage(object):
         # NOTE: In theory, a queue can be deleted with other storage plugins.
         # This is not a case we worry about with in-memory storage
         return queue.get() # Blocks until queue gets item
-
