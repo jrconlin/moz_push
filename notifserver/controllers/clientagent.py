@@ -46,7 +46,7 @@ from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
 from webob import Response
 from notifserver import VERSION
 from notifserver.controllers import BaseController
-from notifserver.storage import get_message_backend
+from notifserver.storage import (get_message_backend, NotifStorageException)
 
 
 logger = logging.getLogger('clientagent')
@@ -125,8 +125,10 @@ class ClientAgent(BaseController):
         try:
             self.msg_backend.delete_subscription(username, token)
             return HTTPOk()
-        except:
-            logger.error("Error deleting subscription")
+        except NotifStorageException, e:
+            return HTTPBadRequest(e.args[0])
+        except Exception, e:
+            logger.error("Error deleting subscription, %s", str(e))
             raise HTTPInternalServerError()
 
     def broadcast(self, request):

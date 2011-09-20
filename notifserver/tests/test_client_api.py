@@ -42,9 +42,7 @@ import time
 
 from webtest import TestApp
 
-from services.tests.support import TestEnv
 from services.config import Config
-from notifserver.tests import FakeAuthTool
 from notifserver import VERSION
 from notifserver.wsgiapp import make_app
 from notifserver.storage import get_message_backend
@@ -59,7 +57,6 @@ class ClientAgentTest(unittest.TestCase):
     """
 
     def setUp(self):
-        env = TestEnv(ini_dir = os.path.dirname(os.path.realpath(__file__)))
         test_cfg = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                      'tests.conf')
         self.config = Config(cfgfile = test_cfg)
@@ -87,10 +84,12 @@ class ClientAgentTest(unittest.TestCase):
             extra_environ={'REMOTE_USER': self.username})
         assert res.status_int == 200
 
-    def remove_subscription(self, token):
+    def remove_subscription(self, token, success_response = 200):
         res = self.app.post("/%s/remove_subscription" % VERSION,
             json.dumps({'token': token}),
+            status = success_response,
             extra_environ={'REMOTE_USER': self.username})
+        assert res.status_int == success_response
 
     def send_broadcast(self, message = None):
         if message is None:
@@ -124,21 +123,18 @@ class ClientAgentTest(unittest.TestCase):
 
         # Can't delete subscription if it doesn't exist
         try:
-            self.remove_subscription(token)
-            assert False
+            self.remove_subscription(token, success_response = 400)
         except Exception, e:
-            pass
+            import pdb; pdb.set_trace();
+            print str(e)
+
 
         # Normal create and delete
         self.create_subscription(token)
         self.remove_subscription(token)
 
         # Can't delete subscription if already deleted
-        try:
-            self.remove_subscription(token)
-            assert False
-        except Exception, e:
-            pass
+        self.remove_subscription(token, success_response = 400)
 
     def test_broadcasts(self):
         self.set_credentials(self.config.get('tests.user',"testuser"),

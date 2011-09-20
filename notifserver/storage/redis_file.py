@@ -36,6 +36,16 @@ class RedisStorage(object):
     def get_name(cls):
         return 'redis'
 
+    def _user_storage_path(self, username):
+        """ Return a path constructed from the username's token """
+        doc_path = self.config.get('redis.data_path', '/tmp')
+        user_queue = self.create_client_queue(username)
+        user_token = user_queue.get('queue_id')
+        return os.path.join(doc_path,
+                                user_token[0:4],
+                                user_token[4:8],
+                                user_token[8:])
+
     def new_token(self):
         return "%x" % random.getrandbits(256)
 
@@ -75,9 +85,9 @@ class RedisStorage(object):
         """ remove a subscription """
         tuser = self.redis.get("s2u:%s" % token)
         if tuser != username:
-            logger.error("Attempted to remove token %s not for username %s" %
+            raise NotifStorageException(("Attempted to remove token %s not " +
+                                        "for username %s") %
                          (token, username))
-            return False;
         self.redis.delete("s2u:%s" % token)
         # remove all instances of the token from the user's list
         # note, python redis reverses the lrem arguments, which is Awesome ._.
@@ -116,18 +126,18 @@ class RedisStorage(object):
         return False
 
     def send_broadcast(self, message, username, origin = None):
-        """ append message to user's out queue """
-        doc_path = self.config.get('redis.data_path', '/tmp')
+        """ append message to user's out queue
+            queue = user/_tok/en_as_path/new_message_token
+        """
+        user_queue = self.create_client_queue(username)
+        user_token = user_queue.get('queue_id')
         max_msgs = int(self.config.get('redis.max_msgs_per_user', '200'))
         file_ok = False
-        while (not file_ok):
-            new_message_token = base64.urlsafe_b64encode(self.new_token())
-            doc_path = os.path.join(doc_path,
-                                    new_message_token[0:2],
-                                    new_message_token[2:4],
-                                    new_message_token[4:6])
-            doc_file = new_message_token[6:]
+        doc_path = self._user_storage_path(username)
+        if not os.path.exists(doc_path):
             os.makedirs(doc_path)
+        while (not file_ok):
+            doc_file = base64.urlsafe_b64encode(self.new_token())
             file_ok = not os.path.isfile(os.path.join(doc_path, doc_file))
         file_path = os.path.join(doc_path, doc_file)
         file = os.open(file_path, os.O_WRONLY | os.O_CREAT)
@@ -139,7 +149,7 @@ class RedisStorage(object):
             top_index = json.loads(index_record).get("id", 0)
         parsed_message = json.loads(message)
         message_body = json.loads(parsed_message.get('body'))
-        redStore = {'file': file_path,
+        redStore = {'file': doc_file,
                     'origin': origin,
                     'expry': int(time.time() + message_body.get('ttl',
                         self.config.get('notifserver.max_ttl_seconds',
@@ -156,6 +166,7 @@ class RedisStorage(object):
 
     def get_pending_messages(self, username, since = None):
         """ send messages to user """
+        doc_path = self._user_storage_path(username)
         message_list = self.redis.lrange('u2m:%s' % username, 0, -1)
         result = []
         buffer = None
@@ -168,12 +179,13 @@ class RedisStorage(object):
                 self._cleanMessage(username, message)
                 continue
             try:
-                stat = os.lstat(mstruct.get('file'))
-                file = os.open(mstruct.get('file'), os.O_RDONLY)
+                file_path = os.path.join(doc_path, mstruct.get('file'))
+                stat = os.lstat(file_path)
+                file = os.open(file_path, os.O_RDONLY)
                 buffer = os.read(file, stat.st_size)
                 os.close(file)
             except OSError, e:
-                logger.warn("Message missing %s" % mstruct.get('file'))
+                logger.warn("Message missing %s" % file_path)
                 self._cleanMessage(username, message)
                 continue
             result.append(buffer)
