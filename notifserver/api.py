@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #  Shane da Silva <sdasilva@mozilla.com>
+#  JR Conlin <jrconlin@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -38,6 +39,7 @@
 import base64
 from httplib import HTTPConnection
 import json
+
 
 class ClientAgentAPI(object):
     """Synchronous API for making HTTP requests to the Client Agent.

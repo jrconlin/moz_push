@@ -75,7 +75,6 @@ class ClientAgentTest(unittest.TestCase):
         res = self.app.post("/%s/new_queue" % VERSION,
             extra_environ={'REMOTE_USER': self.username})
         assert res.status_int == 200
-
         return json.loads(res.body)
 
     def create_subscription(self, token):
@@ -94,41 +93,34 @@ class ClientAgentTest(unittest.TestCase):
     def send_broadcast(self, message = None):
         if message is None:
             message = "'this is a broadcast message'"
-
         self.set_credentials("testuser", "mypassword")
         self.app.post("/%s/broadcast" % VERSION,
             message,
             extra_environ={'REMOTE_USER': self.username})
-
-
         # TODO: Figure out a way to extract messages from queues in tests
         # For now we assume all is well if "200 OK" returned
 
     def test_create_queue(self):
         self.set_credentials(self.config.get('tests.user', 'testuser'),
-                             self.config.get('tests.password',"mypassword"))
+                             self.config.get('tests.password', "mypassword"))
         queue_info = self.create_queue()
         assert 'queue_id' in queue_info
         assert 'host' in queue_info
         assert 'port' in queue_info
-
         assert len(queue_info['queue_id']) > 0
         assert len(queue_info['host']) > 0
         assert queue_info['port']
 
     def test_subscriptions(self):
         self.set_credentials(self.config.get('tests.user', 'testuser'),
-                             self.config.get('tests.password',"mypassword"))
+                             self.config.get('tests.password', "mypassword"))
         token = "TEST123456789"
 
         # Can't delete subscription if it doesn't exist
         try:
             self.remove_subscription(token, success_response = 400)
         except Exception, e:
-            import pdb; pdb.set_trace();
             print str(e)
-
-
         # Normal create and delete
         self.create_subscription(token)
         self.remove_subscription(token)
@@ -137,7 +129,7 @@ class ClientAgentTest(unittest.TestCase):
         self.remove_subscription(token, success_response = 400)
 
     def test_broadcasts(self):
-        self.set_credentials(self.config.get('tests.user',"testuser"),
+        self.set_credentials(self.config.get('tests.user', "testuser"),
                              self.config.get('tests.password', "mypassword"))
         queue_info = self.create_queue()
         ciphertext = 'test_12345'

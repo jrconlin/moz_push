@@ -1,7 +1,10 @@
+
 from services.wsgiauth import Authentication
 from webob.exc import HTTPTemporaryRedirect
 from notifserver.controllers import BaseController
 
+
+# TODO: This needs to be integrated to the LDAP server (for end user control).
 
 class NotifServerAuthentication(Authentication, BaseController):
 

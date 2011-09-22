@@ -1,14 +1,46 @@
-import base64
+# ***** BEGIN LICENSE BLOCK *****
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is Mozilla Push Notification Server
+#
+# The Initial Developer of the Original Code is the Mozilla Foundation.
+# Portions created by the Initial Developer are Copyright (C) 2011
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#   JR Conlin (jrconlin@mozilla.com)
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either the GNU General Public License Version 2 or later (the "GPL"), or
+# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK *****
 import json
 import random
-import urllib
 import pymongo
 import time
 
-import pdb
-
-from notifserver.storage import (logger, NotifStorageException)
+from notifserver.storage import (logger)
 from pymongo.errors import OperationFailure
+
 
 class MongoStorage(object):
 
@@ -50,7 +82,7 @@ class MongoStorage(object):
     def create_client_queue(self, username):
         # create the mapping record
 
-        channel_info = {u'token': new_token(),
+        channel_info = {u'token': self.new_token(),
                         u'user_id': username,
                         u'type': 'queue',
                         u'created': int(time.time())
@@ -61,11 +93,11 @@ class MongoStorage(object):
                     username)
         try:
             self.db.user.insert(channel_info, safe=True)
-            return { 'queue_id': channel_info['token'],
+            return {'queue_id': channel_info['token'],
                     'host': self.config.get('notifserver.host'),
                     'port': self.config.get('notifserver.port')}
 
-        except OperationFailure:
+        except OperationFailure, e:
             logger.error('Could not create mapping: %s' % str(e))
             return False
 
@@ -79,7 +111,7 @@ class MongoStorage(object):
         try:
             self.db.mapping.insert(mapping_info, safe=True)
             return True
-        except OperationFailure:
+        except OperationFailure, e:
             logger.error('Could not create subscription: %s' % str(e))
             return False
 
@@ -90,7 +122,7 @@ class MongoStorage(object):
             self.db.user.remove({'user_id': username,
                                  'origin': token})
             return True
-        except OperationFailure:
+        except OperationFailure, e:
             logger.error('Could not remove mappning for subscription %s'
                          % str(e))
             return False
@@ -102,42 +134,45 @@ class MongoStorage(object):
             if mapping is None or mapping.get('user', None) is None:
                 return None
             return mapping.get('user')
-        except OperationalError, e:
+        except OperationFailure, e:
             logger.error('Could not find mapping to user for token %s, %s',
                          token, str(e))
             return None
 
-    def publish_message(self, message, token):
+    def publish_message(self, message, token, origin = None):
         # This really should push to a single device.
         user = self._resolve_token(token)
         if user is None:
             return False
 
-        return self.send_broadcast(message, user)
+        return self.send_broadcast(message, user, origin = origin)
 
-    def queue_message(self, message, queue_name):
+    def queue_message(self, message, queue_name, origin = None):
         channel_info = self.db.user.get_one({u'token': queue_name,
                                              u'type': 'queue'})
         if channel_info is None:
             logger.warn("No user for queue %s" % queue_name)
             return False
-        return self.publish_message(message, channel_info.get('user_id'))
+        return self.publish_message(message,
+                channel_info.get('user_id'),
+                origin = origin)
 
-    def send_broadcast(self, message, username):
+    def send_broadcast(self, message, username, origin = None):
         msg_content = {}
         ttl = int(self.config.get('notif_server.max_ttl_seconds',
-                                  '259200')) # 3 days
+                                  '259200'))  # 3 days
         try:
             msg_content = json.loads(message)
             ttl = msg_content.get('ttl', ttl)
-            self.db.message.save({u'user_id': mapping.get('user'),
-                           'origin': token,
+            self.db.message.save({u'user_id': username,
+                           'origin': origin,
                            'message': message,
                            'expry': int(time.time() + ttl)})
-            #TODO:: Add in notification to tickle listening clients (if desired)
-        except OperationError, e:
-            logger.error("Could not save message to %s from %s " %(
-                mapping.get('user'), token
+            #TODO:: Add in notification to tickle listening
+            # clients (if desired)
+        except OperationFailure, e:
+            logger.error("Could not save message to %s from %s " % (
+                username, origin
             ))
         except ValueError, e:
             logger.error("message is not valid JSON, ignoring %s" %
@@ -154,8 +189,8 @@ class MongoStorage(object):
             query['ttl'] = {'$gt': since}
         return list(self.db.user.find(query))
 
-    def purge(self):
+    def _purge(self):
         try:
             self.db.remove({'expry': {'$lt': int(time.time())}})
-        except OperationError, e:
+        except OperationFailure, e:
             logger.error("Could not purge old messages: %s", str(e))

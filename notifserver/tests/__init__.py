@@ -37,6 +37,7 @@
 
 from services.auth.dummy import DummyAuth
 
+
 class FakeRequest(object):
     """
      Fake request object for testing only

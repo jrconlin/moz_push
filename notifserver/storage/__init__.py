@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #  Shane da Silva <sdasilva@mozilla.com>
+#  JR Conlin <jrconlin@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -41,6 +42,7 @@ from services.pluginreg import (PluginRegistry, load_and_configure)
 
 # Use this logger for all MessageStorage plugins
 logger = logging.getLogger('messagestorage')
+
 
 class NotifStorageException (Exception):
 
@@ -112,7 +114,7 @@ class MessageStorage(PluginRegistry):
         """
 
     @abc.abstractmethod
-    def publish_message(self, message, token):
+    def publish_message(self, message, token, origin = None):
         """Publishes a message to a subscription token.
 
         This will forward the message to all clients registered with
@@ -129,7 +131,7 @@ class MessageStorage(PluginRegistry):
         """
 
     @abc.abstractmethod
-    def queue_message(self, message, queue_name):
+    def queue_message(self, message, queue_name, origin = None):
         """Sends a message to a specified queue.
 
         Args:
@@ -143,7 +145,7 @@ class MessageStorage(PluginRegistry):
         """
 
     @abc.abstractmethod
-    def send_broadcast(self, message, username):
+    def send_broadcast(self, message, username, origin = None):
         """Broadcasts a message to all clients registered to a user.
 
         Args:
@@ -156,6 +158,7 @@ class MessageStorage(PluginRegistry):
             False otherwise.
 
         """
+
 
 def get_message_backend(config):
     return load_and_configure(config, cls_param = "notifserver.backend")

@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #  Shane da Silva <sdasilva@mozilla.com>
+#  JR Conlin <jrconln@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -41,10 +42,10 @@ import json
 import random
 import urllib
 import pika
-import pdb
 
 from notifserver.storage import (logger, NotifStorageException)
 from pika.adapters.select_connection import SelectConnection
+
 
 class RabbitMQStorage(object):
     """Manages message storage with a RabbitMQ server."""
@@ -60,7 +61,7 @@ class RabbitMQStorage(object):
         self.broker_user = self.config.get('username', 'user')
         self.broker_pass = self.config.get('password', 'user')
         self.broker_host = self.config.get('host', 'localhost')
-        self.broker_amqp_port = int(self.config.get('amqp_port','5672'))
+        self.broker_amqp_port = int(self.config.get('amqp_port', '5672'))
         self.broker_http_port = int(self.config.get('http_port', '8000'))
         self.broker_vhost = self.config.get('virtual_host', '/')
         self.incoming_exchange_name = self.config.get('incoming_exchange_name',
@@ -74,7 +75,6 @@ class RabbitMQStorage(object):
         logger.info("Message Broker Virtual Host: %s" % self.broker_vhost)
 
         # Create connection parameters object for easy reuse
-        import pdb; pdb.set_trace()
         self.conn_params = pika.ConnectionParameters(
             credentials=pika.PlainCredentials(
                 self.broker_user,
@@ -89,14 +89,13 @@ class RabbitMQStorage(object):
                                                   self.on_open)
 
         # Create HTTP connection object for easy reuse
-        self.http_conn = httplib.HTTPConnection(self.broker_host, self.broker_http_port)
-
+        self.http_conn = httplib.HTTPConnection(self.broker_host,
+                            self.broker_http_port)
 
     def on_open(self, connection):
         logger.info("Connected to RabbitMQ")
-        self.is_connected = True;
+        self.is_connected = True
         self.connection = connection
-
 
     def is_connected(self):
         return self.is_connected
@@ -115,7 +114,7 @@ class RabbitMQStorage(object):
             return pika.BlockingConnection(self.conn_params)
         except Exception, e:
             logger.error("Could not connect to amqp server %s", e.message)
-            raise NotifServerException("Could not connect to server")
+            raise NotifStorageException("Could not connect to server")
 
     def _get_http_conn(self):
         return self.http_conn
@@ -177,14 +176,14 @@ class RabbitMQStorage(object):
         user_exchange_name = username
 
         # TODO: See if we can remove this call entirely
-        self._ensure_exchanges_exist(self.incoming_exchange_name, user_exchange_name)
+        self._ensure_exchanges_exist(self.incoming_exchange_name,
+                user_exchange_name)
 
         self._add_binding(
             self.incoming_exchange_name,
             user_exchange_name,
             token,
         )
-
 
     def _add_binding(self, source_exch, dest_exch, routing_key):
         # XXX: OH EM GEE this is a hack. Creating Exchange-to-exchange (E2E)
@@ -194,7 +193,6 @@ class RabbitMQStorage(object):
         #
         # To do this properly, we'll probably have to roll our own version
         # of Pika which supports the exchange.bind method call.
-        import pdb; pdb.set_trace()
         http_conn = self._get_http_conn()
         try:
             auth_headers = {
@@ -217,11 +215,14 @@ class RabbitMQStorage(object):
             http_conn.request('POST', path, body, auth_headers)
 
             response = http_conn.getresponse()
-            logger.debug("Broker returned response with status %s", response.status)
+            logger.debug("Broker returned response with status %s",
+                    response.status)
 
             if response.status != httplib.CREATED:
-                logger.error("Unexpected response status '%s'", response.status)
-                raise Exception("Unexpected response status '%s'", response.status)
+                logger.error("Unexpected response status '%s'",
+                        response.status)
+                raise Exception("Unexpected response status '%s'",
+                        response.status)
         except:
             logger.error("Error adding binding via HTTP")
             raise
@@ -233,7 +234,8 @@ class RabbitMQStorage(object):
         user_exchange_name = username
 
         # TODO: See if we can remove this call entirely
-        self._ensure_exchanges_exist(self.incoming_exchange_name, user_exchange_name)
+        self._ensure_exchanges_exist(self.incoming_exchange_name,
+                user_exchange_name)
 
         self._delete_binding(
             self.incoming_exchange_name,
@@ -255,7 +257,8 @@ class RabbitMQStorage(object):
                 urllib.quote_plus(self.broker_vhost),
                 urllib.quote_plus(source_exch),
                 urllib.quote_plus(dest_exch),
-                # Encode twice because binding "properties" are URL-encoded before stored
+                # Encode twice because binding "properties" are
+                # URL-encoded before stored
                 urllib.quote_plus(urllib.quote_plus(routing_key))
             )
 
@@ -263,11 +266,14 @@ class RabbitMQStorage(object):
             http_conn.request('DELETE', path, '', auth_headers)
 
             response = http_conn.getresponse()
-            logger.debug("Broker returned response with status %s", response.status)
+            logger.debug("Broker returned response with status %s",
+                    response.status)
 
             if response.status != httplib.NO_CONTENT:
-                logger.error("Unexpected response status '%s'", response.status)
-                raise Exception("Unexpected response status '%s'", response.status)
+                logger.error("Unexpected response status '%s'",
+                    response.status)
+                raise Exception("Unexpected response status '%s'",
+                        response.status)
         except:
             logger.error("Error deleting binding via HTTP")
             raise
@@ -277,16 +283,18 @@ class RabbitMQStorage(object):
 
     # Just moving some duplicate code into a single location.
     # Hopefully we can delete this entirely if we can prove to ourselves that
-    # there's no good reason to "assert" the existence of these exchanges other
-    # than following proper form (according to AMQP spec).
-    def _ensure_exchanges_exist(self, incoming_exchange_name, user_exchange_name):
+    # there's no good reason to "assert" the existence of these exchanges
+    # other than following proper form (according to AMQP spec).
+    def _ensure_exchanges_exist(self, incoming_exchange_name,
+            user_exchange_name):
         conn = self._get_blocking_amqp_conn()
         try:
             channel = conn.channel()
 
             # TODO: Decide if we should remove this call; the incoming exchange
             # should always exist before new_subscription is called
-            logger.debug("Declaring incoming exchange %s", incoming_exchange_name)
+            logger.debug("Declaring incoming exchange %s",
+                    incoming_exchange_name)
             channel.exchange_declare(
                 exchange=incoming_exchange_name,
                 durable=True,
@@ -314,14 +322,16 @@ class RabbitMQStorage(object):
         try:
             channel = conn.channel()
 
-            logger.debug("Declaring incoming exchange '%s'", self.incoming_exchange_name)
+            logger.debug("Declaring incoming exchange '%s'",
+                    self.incoming_exchange_name)
             channel.exchange_declare(
                 exchange=self.incoming_exchange_name,
                 durable=True,
                 type='direct',
             )
 
-            logger.debug("Publishing message to exchange '%s'", self.incoming_exchange_name)
+            logger.debug("Publishing message to exchange '%s'",
+                    self.incoming_exchange_name)
             channel.basic_publish(
                 exchange=self.incoming_exchange_name,
                 routing_key=token,
@@ -343,14 +353,16 @@ class RabbitMQStorage(object):
         try:
             channel = conn.channel()
 
-            logger.debug("Declaring queue '%s' on message broker", queue_name)
+            logger.debug("Declaring queue '%s' on message broker",
+                    queue_name)
             channel.queue_declare(queue=queue_name)
 
-            logger.debug("Sending message to queue '%s' for processing", queue_name)
+            logger.debug("Sending message to queue '%s' for processing",
+                    queue_name)
             channel.basic_publish(
                 exchange='',
                 routing_key=queue_name,
-                body=request.body,
+                body=message,
                 properties=pika.BasicProperties(
                     content_type="text/plain",
                 ),
@@ -378,7 +390,8 @@ class RabbitMQStorage(object):
             )
 
             # Send message to user exchange so all other clients receive it
-            logger.debug("Publishing message to exchange '%s'", user_exchange_name)
+            logger.debug("Publishing message to exchange '%s'",
+                user_exchange_name)
             channel.basic_publish(
                 exchange=user_exchange_name,
                 routing_key='',
@@ -400,7 +413,6 @@ class RabbitMQStorage(object):
             return result
         username = str(username)
         connection = self._get_blocking_amqp_conn()
-        import pdb; pdb.set_trace()
         try:
             channel = connection.channel()
             logger.debug("Connecting to %s ", username)
@@ -421,7 +433,6 @@ class RabbitMQStorage(object):
                 #channel.basic_ack(delivery_tag=method.delivery_tag)
         except Exception, e:
             logger.error("Crapsticks: %s" % str(e))
-
 
     def handle_deliveries(self, config=None,
                           username=None,
@@ -447,16 +458,15 @@ class RabbitMQStorage(object):
                 def on_channel_open(self, channel):
                     self.channel = channel
                     self.channel.queue_declare(queue=
-                                               self.config.get('channel_name'),
-                                               durable=True,
-                                               exclusive=False,
-                                               auto_delete=False,
-                                               callback=self.queue_declared)
+                                           self.config.get('channel_name'),
+                                           durable=True,
+                                           exclusive=False,
+                                           auto_delete=False,
+                                           callback=self.queue_declared)
 
                 def on_queue_declared(self, frame):
                     self.channel.basic_consume(self.handle_delivery,
-                                               queue=
-                                               self.config.get('channel_name'))
+                             queue = self.config.get('channel_name'))
 
                 def handle_delivery(self, channel, method, header, body):
                     # publish the item.
@@ -467,5 +477,5 @@ class RabbitMQStorage(object):
                              body=body)
 
         except Exception, e:
-            pdb.set_trace();
-            print body
+            logger.error("Unhandled exception %s", str(e))
+            raise

@@ -1,12 +1,48 @@
+# ***** BEGIN LICENSE BLOCK *****   msgs = storage.get_pen
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is Mozilla Push
+#
+# The Initial Developer of the Original Code is the Mozilla Foundation.
+# Portions created by the Initial Developer are Copyright (C) 2011
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#   JR Conlin (jrconlin@mozilla.com)
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either the GNU General Public License Version 2 or later (the "GPL"), or
+# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK *****
+
 import base64
 import json
 import random
-import cPickle
 import time
 import redis
 import os
 
 from notifserver.storage import (logger, NotifStorageException)
+
 
 class RedisStorage(object):
 
@@ -67,19 +103,21 @@ class RedisStorage(object):
 
     def create_subscription(self, username, token):
         """ Map a token to a username """
-        self
         # s2u: subscription to user
         # u2s: user subscriptions
+        retObj = {'queue_id': token,
+                'port': self.config.get('notifserver.port', 80),
+                'host': self.config.get('notifserver.host')}
         if self.redis.get("s2u:%s" % token):
+            if self.redis.get("s2u:%s" % token) == username:
+                return retObj
             logger.error("Token collision! %s" % token)
             return False
         self.redis.set("s2u:%s" % token, username)
         user_tokens = self.redis.lrange("u2s:%s" % username, 0, -1)
         if token not in user_tokens:
             self.redis.lpush("u2s:%s" % username, token)
-        return {'queue_id': token,
-                'port': self.config.get('notifserver.port', 80),
-                'host': self.config.get('notifserver.host')}
+        return retObj
 
     def delete_subscription(self, username, token):
         """ remove a subscription """
@@ -96,21 +134,22 @@ class RedisStorage(object):
         message_list = self.redis.lrange('u2m:%s' % username, 0, -1)
         for message in message_list:
             redStore = json.loads(message)
-            origin =redStore.get('origin', None)
+            origin = redStore.get('origin', None)
             if origin is not None and origin == token:
                 self._cleanMessage(username, message)
 
-    def publish_message(self, message, token):
+    def publish_message(self, message, token, origin = None):
         """ add message to a user queue """
         # resolve token to user
         username = self.redis.get("t2u:%s" % token)
         if username:
-            return self.send_broadcast(message, username, origin = token)
+            return self.send_broadcast(message, username, origin = origin)
         return False
 
     def _cleanMessage(self, username, message):
         """ """
-        dead_file = json.loads(message).get('file')
+        dead_file = os.path.join(self._user_storage_path(username),
+                                 json.loads(message).get('file'))
         logger.info("Removing expired msg file %s" % dead_file)
         try:
             os.remove(dead_file)
@@ -118,31 +157,34 @@ class RedisStorage(object):
             pass
         self.redis.lrem('u2m:%s' % username, message, 0)
 
-    def queue_message(self, message, queue_name):
+    def queue_message(self, message, queue_name, origin = None):
         # resolve queue to user
         username = self.redis.get("s2u:%s" % queue_name)
         if username:
-            self.send_braodcast(message, username)
+            self.send_broadcast(message, username, origin = origin)
         return False
 
     def send_broadcast(self, message, username, origin = None):
         """ append message to user's out queue
             queue = user/_tok/en_as_path/new_message_token
         """
-        user_queue = self.create_client_queue(username)
-        user_token = user_queue.get('queue_id')
         max_msgs = int(self.config.get('redis.max_msgs_per_user', '200'))
         file_ok = False
         doc_path = self._user_storage_path(username)
+
         if not os.path.exists(doc_path):
             os.makedirs(doc_path)
-        while (not file_ok):
-            doc_file = base64.urlsafe_b64encode(self.new_token())
-            file_ok = not os.path.isfile(os.path.join(doc_path, doc_file))
-        file_path = os.path.join(doc_path, doc_file)
-        file = os.open(file_path, os.O_WRONLY | os.O_CREAT)
-        os.write(file, message)
-        os.close(file)
+        try:
+            while (not file_ok):
+                doc_file = base64.urlsafe_b64encode(self.new_token())
+                file_ok = not os.path.isfile(os.path.join(doc_path, doc_file))
+            file_path = os.path.join(doc_path, doc_file)
+            file = os.open(file_path, os.O_WRONLY | os.O_CREAT)
+            os.write(file, message)
+            os.close(file)
+        except IOError, e:
+            logger.error("Could not write message file %s" % str(e))
+            raise NotifStorageException("Error storing message content")
         top_index = 0
         index_record = self.redis.lindex("u2m:%s" % username, 0)
         if index_record is not None:
@@ -185,12 +227,17 @@ class RedisStorage(object):
                 buffer = os.read(file, stat.st_size)
                 os.close(file)
             except OSError, e:
-                logger.warn("Message missing %s" % file_path)
+                logger.warn("Message missing %s [e]" % (file_path, str(e)))
                 self._cleanMessage(username, message)
                 continue
             result.append(buffer)
         return result
 
-    def purge(self):
+    def _purge(self, username = None):
         """ purge old/expired messages """
+        old = self.redis.lrange("u2m:%s" % username, 0, -1)
+        if len(old):
+            for message in old:
+                self._cleanMessage(username, message)
+            self.redis.ltrim("u2m:%s" % username, 0, -1)
         pass

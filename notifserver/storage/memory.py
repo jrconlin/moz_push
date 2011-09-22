@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #  Shane da Silva <sdasilva@mozilla.com>
+#  JR Conlin <jrconlin@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -39,7 +40,7 @@ from Queue import Queue
 import random
 import threading
 
-from notifserver.storage import logger
+from notifserver.storage import (logger, new_token)
 
 
 class MemoryStorage(object):
@@ -69,7 +70,7 @@ class MemoryStorage(object):
 
         self._ensure_user_exists(username)
 
-        # TODO: Probably unnecessary, but make sure the queue name isn't taken
+        #TODO: Probably unnecessary, but make sure the queue name isn't taken
         queue_name = new_token()
 
         logger.info("Creating queue %s for user %s", queue_name, username)
@@ -90,27 +91,32 @@ class MemoryStorage(object):
             self.userToQueues[username] = []
 
     def create_subscription(self, username, token):
-        logger.info("Creating subscription '%s' for user '%s'" % (token, username))
+        logger.info("Creating subscription '%s' for user '%s'" % (token,
+            username))
 
         with self.mutex:
             self._ensure_user_exists(username)
 
             if token in self.subToUser:
                 if self.subToUser[token] != username:
-                    raise Exception("Subscription token '%s' is already taken" % token)
+                    raise Exception(
+                            "Subscription token '%s' is already taken" %
+                            token)
                 else:
-                    pass # Don't care if same user registers token twice
+                    pass  # Don't care if same user registers token twice
 
             self.subToUser[token] = username
 
     def delete_subscription(self, username, token):
-        logger.info("Deleting subscription '%s' for user '%s'" % (token, username))
+        logger.info("Deleting subscription '%s' for user '%s'" % (token,
+            username))
 
         with self.mutex:
             self._ensure_user_exists(username)
 
             if token not in self.subToUser:
-                raise Exception("Subscription token '%s' does not exist" % token)
+                raise Exception("Subscription token '%s' does not exist" %
+                        token)
 
             del self.subToUser[token]
 
@@ -119,7 +125,8 @@ class MemoryStorage(object):
 
         with self.mutex:
             if token not in self.subToUser:
-                raise Exception("Subscription token '%s' does not exist" % token)
+                raise Exception("Subscription token '%s' does not exist" %
+                        token)
 
             username = self.subToUser[token]
 
@@ -138,7 +145,7 @@ class MemoryStorage(object):
 
             self.queues[queue_name].put(message)
 
-    def send_broadcast(self, message, username):
+    def send_broadcast(self, message, username, origin = None):
         logger.info("Sending broadcast to user '%s'" % username)
 
         with self.mutex:
@@ -161,4 +168,8 @@ class MemoryStorage(object):
 
         # NOTE: In theory, a queue can be deleted with other storage plugins.
         # This is not a case we worry about with in-memory storage
-        return queue.get() # Blocks until queue gets item
+        return queue.get()  # Blocks until queue gets item
+
+    def purge(self, username = None):
+        for queue_name in self.userToQueues[username]:
+            self.queues[queue_name] = {}
