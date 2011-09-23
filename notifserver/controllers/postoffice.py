@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #  Shane da Silva <sdasilva@mozilla.com>
+#  JR Conlin <jrconlin@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -38,7 +39,6 @@
 import json
 import logging
 
-from mako.template import Template
 from services.pluginreg import _resolve_name
 from webob import Response
 from webob.exc import HTTPAccepted, HTTPBadRequest
@@ -78,7 +78,6 @@ class PostOfficeController(BaseController):
             self.validator = validator
 
     def handlePost(self, request, **kw):
-        pdb.set_trace()
         if not self.msg_backend:
             self._init(self.app.config)
         logger.info("Message received: %s", request.body)
@@ -108,11 +107,13 @@ class PostOfficeController(BaseController):
             self.msg_backend.publish_message(json.dumps(msg), body['token'])
             return HTTPAccepted()
         except:
-            logger.error("Error publishing message with token '%s'" % body['token'])
+            logger.error("Error publishing message with token '%s'" %
+                    body['token'])
             raise
 
     def forward_message(self, request):
-        """Queues messages in the message broker to be validated at a later time."""
+        """Queues messages in the message broker to be validated at
+            a later time."""
         try:
             self.msg_backend.queue_message(request, self.msg_queue_name)
             return HTTPAccepted()
@@ -120,13 +121,11 @@ class PostOfficeController(BaseController):
             logger.error("Error queueing message in message broker")
             raise
 
-
     def index(self, request, **kw):
         template = self.get_template("index")
-        content_type = "text/html"      #it's always text/html
+        content_type = "text/html"  # it's always text/html
         response = {}
 
-        import pdb;pdb.set_trace();
         body = template.render(request = request,
                                 config = self.app.config,
                                 response = response)

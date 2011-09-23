@@ -47,7 +47,7 @@ from beaker.middleware import SessionMiddleware
 
 urls = [
         ## private
-        ('POST', '/%s/notification' % VERSION,
+        ('POST', '/%s/notify/{usertoken:[^\/\?\&]+}' % VERSION,
                 'po', 'post_notification'),
         ('GET', '/%s/feed/{usertoken:[^\/\?\&]+}' % VERSION,
                 'sse', 'handle_feed'),

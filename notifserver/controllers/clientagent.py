@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #  Shane da Silva <sdasilva@mozilla.com>
+#  JR Conlin <jrconlin@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -35,7 +36,6 @@
 #
 # ***** END LICENSE BLOCK *****
 
-import base64
 import json
 import logging
 
@@ -43,13 +43,11 @@ import pdb
 
 from services.formatters import json_response
 from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
-from webob import Response
-from notifserver import VERSION
 from notifserver.controllers import BaseController
 from notifserver.storage import (get_message_backend, NotifStorageException)
 
-
 logger = logging.getLogger('clientagent')
+
 
 class ClientAgent(BaseController):
     """Carries out actions on behalf of clients.
@@ -83,8 +81,8 @@ class ClientAgent(BaseController):
         try:
             logger.debug("New subscription request: '%s'", request.body)
             subscription = json.loads(request.body)
-        except ValueError as verr:
-            logger.error("Error parsing subscription JSON")
+        except ValueError, verr:
+            logger.error("Error parsing subscription JSON  %s" % str(verr))
             raise HTTPBadRequest("Invalid JSON")
 
         if 'token' not in subscription or not subscription['token']:
@@ -110,8 +108,8 @@ class ClientAgent(BaseController):
         try:
             logger.debug("Remove subscription request: '%s'", request.body)
             subscription = json.loads(request.body)
-        except ValueError as verr:
-            logger.error("Error parsing subscription JSON")
+        except ValueError, verr:
+            logger.error("Error parsing subscription JSONi %s" % str(verr))
             raise HTTPBadRequest("Invalid JSON")
 
         if 'token' not in subscription or not subscription['token']:
@@ -139,8 +137,8 @@ class ClientAgent(BaseController):
             logger.debug("Broadcast request: '%s'", request.body)
             logger.debug("Broadcast Message length: %s", len(request.body))
             broadcast_msg = json.loads(request.body)
-        except ValueError as verr:
-            logger.error("Error parsing broadcast JSON")
+        except ValueError, verr:
+            logger.error("Error parsing broadcast JSON %s", str(verr))
             raise HTTPBadRequest("Invalid JSON")
 
         if 'body' not in broadcast_msg:
@@ -157,7 +155,8 @@ class ClientAgent(BaseController):
             self.msg_backend.send_broadcast(request.body, username)
             return HTTPOk()
         except:
-            logger.error("Error sending broadcast message to user '%s'", username)
+            logger.error("Error sending broadcast message to user '%s'", 
+                    username)
             raise HTTPInternalServerError()
 
 """

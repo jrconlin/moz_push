@@ -35,18 +35,12 @@
 #
 # ***** END LICENSE BLOCK *****
 
-"""TODO: convert this to async handlers for pika.
-    How are sse channels broken?
-    How do we requeue a message that may go to a broken pipe.
-"""
 import json
 
 from notifserver.storage import get_message_backend
 from notifserver.controllers import BaseController
 from services.config import Config
-from pika.adapters.blocking_connection import BlockingConnection
 from webob.response import Response
-from services.pluginreg import _resolve_name
 
 class ServerEventController(BaseController):
     connection = None
@@ -62,7 +56,7 @@ class ServerEventController(BaseController):
             self.validator
 
     def handlefeed(self, request, **kw):
-        connection = self._connect(self.app.config)
+        self.connection = self._connect(self.app.config)
 
     def on_connected(self, connection):
         """ Fully connected to Rabbit """
@@ -81,14 +75,13 @@ class ServerEventController(BaseController):
             ch.consume(token, notifsCallback, no_ack=True)
             ch.qos(prefetch_count=1)
 
-        self.conn = Connection()
+        self.conn = self.onnection()
         self.conn.connect(on_connect)
 
     def handle_feed(self, request, **kw):
 
         self._connect(self.app.config)
 
-        import pdb; pdb.set_trace()
         items =self.msg_backend.get_pending_messages(
                     request.sync_info.get('usertoken'),
                     request.sync_info.get('since', None))
@@ -131,11 +124,19 @@ class ServerEventController(BaseController):
 
 
 def make_sse_server(config_filename):
-    configItems = ['configuration', 'broker_host', 'broker_amqp_port', 'broker_username', 'broker_password', 'broker_virtual_host', 'incoming_exchange_name', 'notifs_queue_name']
+    configItems = ['configuration', 
+            'broker_host', 
+            'broker_amqp_port', 
+            'broker_username', 
+            'broker_password', 
+            'broker_virtual_host', 
+            'incoming_exchange_name', 
+            'notifs_queue_name']
     SSEConfig = Config(config_filename)
-    configMap = dict([(item, SSEConfig.get("app:post_office", item)) for item in configItems])
+    configMap = dict([(item, SSEConfig.get("app:post_office", item)) 
+        for item in configItems])
 
-    return SSEServer(configMap)
+    return ServerEventController(configMap)
 
 if __name__ == "__main__":
     SSE = make_sse_server("../development.ini")

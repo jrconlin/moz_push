@@ -37,6 +37,7 @@
 
 import time
 
+
 class NotificationValidator(object):
     """
     Validates JSON notifications that were sent to the POST office.
@@ -71,8 +72,7 @@ class NotificationValidator(object):
 
         if 'ttl' not in notif:
             # No TTL specified; create one (30 days)
-            body['ttl'] = 30*24*60*60
+            body['ttl'] = 30 * 24 * 60 * 60
 
         if 'ciphertext' not in body:
             raise KeyError('Notification body ciphertext not found.')
-
