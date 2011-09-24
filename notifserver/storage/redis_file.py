@@ -191,9 +191,13 @@ class RedisStorage(object):
             top_index = json.loads(index_record).get("id", 0)
         parsed_message = json.loads(message)
         message_body = json.loads(parsed_message.get('body'))
+        now = int(time.time())
+        timestamp = parsed_message.get('timestamp', int(time.time()))
+        if timestamp > now:
+            timestamp == now
         redStore = {'file': doc_file,
                     'origin': origin,
-                    'expry': int(time.time() + message_body.get('ttl',
+                    'expry': int(timestamp + message_body.get('ttl',
                         self.config.get('notifserver.max_ttl_seconds',
                                         259200))),
                     'id': top_index + 1}
@@ -230,7 +234,7 @@ class RedisStorage(object):
                 logger.warn("Message missing %s [e]" % (file_path, str(e)))
                 self._cleanMessage(username, message)
                 continue
-            result.append(buffer)
+            result.append(json.loads(buffer))
         return result
 
     def _purge(self, username = None):

@@ -142,8 +142,8 @@ class ClientAgentTest(unittest.TestCase):
                         "HMAC": ""}))
         backend = get_message_backend(self.config)
         messages = backend.get_pending_messages(self.config.get('tests.user'))
-        self.assertEqual(json.loads(
-                    json.loads(messages[0]).get('body')).get('ciphertext'),
+        self.assertEqual(
+                    json.loads(messages[0].get('body')).get('ciphertext'),
                          ciphertext)
         #wait for the message to expire.
         time.sleep(2)

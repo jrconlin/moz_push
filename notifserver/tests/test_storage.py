@@ -81,7 +81,7 @@ class TestStorage(unittest.TestCase):
                                 queue_info.get('queue_id'),
                                 origin = origin)
         msgs = storage.get_pending_messages(username)
-        self.failUnless(test_token in msgs[0])
+        self.failUnless(test_token in msgs[0].get('body'))
         storage._purge(username = username)
 
         # Add a message to a subscription queue
