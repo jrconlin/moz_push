@@ -62,10 +62,17 @@ requires = [
             'WebTest',
             ]
 
+try:
+        with open('README.txt') as file:
+            long_desc = file.read
+except:
+        long_desc = "TBD"
+
+
 setup(name='NotifServer', author='Mozilla Services Group',
       url='http://hg.mozilla.org/services/',
       description='Mozilla Push Notification Server',
-      long_description=open('README.txt').read(),
+      long_description=long_desc,
       author_email='dev_services@mozilla.com',
       version=0.1, packages=find_packages(),
       entry_points=entry_points, install_requires=requires,

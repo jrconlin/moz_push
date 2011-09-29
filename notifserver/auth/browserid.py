@@ -11,15 +11,25 @@ from notifserver.auth.jws import (JWS, JWSException)
 class NotifServerAuthentication(object):
     """ for this class, username = user's email address, password = assertion """
 
+    def __init__(self, *args, **kw):
+        self.config = kw.get('config', {})
+        self.environ = kw.get('environ', {})
+
     def authenticate_user(self, user_name, password):
         """ Return a validated user id """
-
         try:
-            import pdb; pdb.set_trace()
             raw_assertion = password;
             jws = JWS(config = self.config,
                       environ = {} )
             assertion = jws.parse(raw_assertion)
+
+            if (user_name != assertion.get('email')):
+                log_cef('username does not match assertion value %s != %s ' %
+                        (user_name, assertion.get('email')),
+                        5,
+                        environ = self.environ,
+                        config = self.config)
+                raise HTTPUnauthorized("Invalid assertion")
             return assertion
 
         except JWSException, e:

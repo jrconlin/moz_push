@@ -88,9 +88,9 @@ class MongoStorage(object):
                         u'created': int(time.time())
                         }
 
-        logger.info("Creating incoming queue %s for user %s",
+        logger.info("Creating incoming queue %s for user %s" % (
                     channel_info.get('token'),
-                    username)
+                    username))
         try:
             self.db.user.insert(channel_info, safe=True)
             return {'queue_id': channel_info['token'],

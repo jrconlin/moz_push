@@ -35,7 +35,6 @@
 from M2Crypto import RSA, BIO, ASN1
 from hashlib import sha256, sha384, sha512
 
-
 import base64
 import cef
 import hmac
@@ -99,7 +98,7 @@ class JWS:
             raise(JWSException("Cannot verify empty JWS"))
         if self.verify(jws):
             (head, payload_str, signature) = jws.split('.')
-            payload = json.parse(base64.b64decode(payload_str))
+            payload = json.loads(base64.b64decode(_check_b64pad(payload_str)))
             return payload
         else:
             raise(JWSException("Invalid JWS"))
@@ -109,7 +108,7 @@ class JWS:
             raise (JWSException("Cannot verify empty JWS"))
         try:
             (header_str, payload_str, signature) = jws.split('.')
-            header = json.parse(base64.b64decode(header_str))
+            header = json.loads(base64.b64decode(_check_b64pad(header_str)))
             if alg is None:
                 alg = header.get('alg', 'NONE')
             try:
@@ -175,6 +174,8 @@ class JWS:
         return (base64.urlsafe_b64encode(tsignature)) == signature
 
     def _verify_RS(self, alg, header, sbs, signature, testKey=None):
+        #TODO: Actually verify this by pulling the right keys from sig host
+        return True
         #rsa.verify(sbs, pubic_key)
         ## fetch the public key
         if testKey:
@@ -207,8 +208,12 @@ class JWS:
         return self._header
 
 
+def _check_b64pad(string):
+    pad_size = 4 - (len(string) % 4)
+    return string + ('=' * pad_size)
+
 def create_rsa_jki_entry(pubKey, keyid=None):
-    keys = json.parse(base64.b64decode(pubKey))
+    keys = json.loads(base64.b64decode(_check_b64pad(pubKey)))
     vinz = {'algorithm': 'RSA',
             'modulus': keys.get('n'),
             'exponent': keys.get('e')}
@@ -236,7 +241,7 @@ def fetch_rsa_pub_key(header, **kw):
         elif 'jku' in header and header.get('jku', None):
             key = header['jku']
             if key.lower().startswith('data:'):
-                pub = json.parse(key[key.index('base64,')+7:])
+                pub = json.loads(key[key.index('base64,')+7:])
         return pub
         ""
         pub = {

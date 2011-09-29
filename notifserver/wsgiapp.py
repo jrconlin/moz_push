@@ -74,7 +74,6 @@ class NotificationServerApp(SyncServerApp):
 
     def __init__(self, urls, controllers, config, auth_class):
         """ Main storage """
-        import pdb; pdb.set_trace();
         super(NotificationServerApp, self).__init__(urls = urls,
                                                     controllers = controllers,
                                                     config = config,

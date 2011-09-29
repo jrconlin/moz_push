@@ -86,7 +86,7 @@ class RedisStorage(object):
         return "%x" % random.getrandbits(256)
 
     def create_client_queue(self, username):
-        logger.info("Creating incoming queue for %s for user %s")
+        logger.info("Creating incoming queue for user %s" % username)
         try:
             # Check to see if the user already has a token.
             # ut: user -> token

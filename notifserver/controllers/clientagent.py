@@ -39,8 +39,6 @@
 import json
 import logging
 
-import pdb
-
 from services.formatters import json_response
 from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
 from notifserver.controllers import BaseController
@@ -59,25 +57,42 @@ class ClientAgent(BaseController):
 
     def _init(self, config):
         self.msg_backend = get_message_backend(config)
+        self.auth = self.app.auth.backend
+        self.auth.__init__(config = config)
+
+    def _auth(self, request):
+        username = request.params.get('username')
+        password = request.params.get('password')
+        self.auth.authenticate_user(username,password);
+        request.environ['beaker.session']['uid'] = username
+        request.environ['beaker.session']['assertion'] = password
+
+    def _get_uid(self, request):
+        uid = request.environ.get('beaker.session', {}).get('uid', None)
+        if uid is None:
+            self._auth(request)
+            return request.environ.get('beaker.session', {}).get('uid', None)
 
     def new_queue(self, request):
         """ Create a new queue for the user. (queues hold subscriptions) """
-        import pdb; pdb.set_trace();
         self._init(self.app.config)
+        username = self._get_uid(request)
 
+        #TODO: Authenticate the user using the backend auth.
         try:
             result = self.msg_backend.create_client_queue(username)
             return json_response(result)
         except Exception, e:
-            pdb.set_trace()
-            logger.error("Error creating client queue %s", str(e))
+            logger.error("Error creating client queue %s" % str(e))
             raise HTTPInternalServerError
 
     def new_subscription(self, request):
         """ Generate a new subscription ID for the user's queue. """
-        import pdb; pdb.set_trace();
-        username = request.environ['REMOTE_USER']
+        #TODO add auth here too and all other REMOTE_USER instances.
         self._init(self.app.config)
+        username = self._get_uid(request)
+        self.auth.authenticate_user(username,
+                    request.params.get('password'));
 
         try:
             logger.debug("New subscription request: '%s'", request.body)
@@ -103,7 +118,7 @@ class ClientAgent(BaseController):
 
     def remove_subscription(self, request):
         """ Remove a subscription from a user's queue. """
-        username = request.environ['REMOTE_USER']
+        username = self._get_uid(request)
         self._init(self.app.config)
 
         try:
@@ -127,11 +142,11 @@ class ClientAgent(BaseController):
         except NotifStorageException, e:
             return HTTPBadRequest(e.args[0])
         except Exception, e:
-            logger.error("Error deleting subscription, %s", str(e))
+            logger.error("Error deleting subscription, %s" % str(e))
             raise HTTPInternalServerError()
 
     def broadcast(self, request):
-        username = request.environ['REMOTE_USER']
+        username = self._get_uid(request)
         self._init(self.app.config)
 
         try:
@@ -139,7 +154,7 @@ class ClientAgent(BaseController):
             logger.debug("Broadcast Message length: %s", len(request.body))
             broadcast_msg = json.loads(request.body)
         except ValueError, verr:
-            logger.error("Error parsing broadcast JSON %s", str(verr))
+            logger.error("Error parsing broadcast JSON %s" % str(verr))
             raise HTTPBadRequest("Invalid JSON")
 
         if 'body' not in broadcast_msg:
@@ -150,13 +165,13 @@ class ClientAgent(BaseController):
             logger.error("HMAC not specified")
             raise HTTPBadRequest("Need to include HMAC with broadcast")
 
-        logger.info("Broadcasting message for user '%s'", username)
+        logger.info("Broadcasting message for user '%s'" % username)
 
         try:
             self.msg_backend.send_broadcast(request.body, username)
             return HTTPOk()
         except:
-            logger.error("Error sending broadcast message to user '%s'", 
+            logger.error("Error sending broadcast message to user '%s'" %
                     username)
             raise HTTPInternalServerError()
 
