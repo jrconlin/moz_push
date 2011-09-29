@@ -41,7 +41,7 @@ from notifserver import VERSION
 from notifserver.controllers.postoffice import PostOfficeController
 from notifserver.controllers.sse import ServerEventController
 from notifserver.controllers.clientagent import ClientAgent
-from notifserver.auth.basic import NotifServerAuthentication
+from services.wsgiauth import Authentication
 from services.baseapp import set_app, SyncServerApp
 from beaker.middleware import SessionMiddleware
 
@@ -74,6 +74,7 @@ class NotificationServerApp(SyncServerApp):
 
     def __init__(self, urls, controllers, config, auth_class):
         """ Main storage """
+        import pdb; pdb.set_trace();
         super(NotificationServerApp, self).__init__(urls = urls,
                                                     controllers = controllers,
                                                     config = config,
@@ -90,4 +91,4 @@ make_app = set_app(urls,
                    controllers,
                    klass=NotificationServerApp,
                    wrapper=_wrap,
-                   auth_class=NotifServerAuthentication)
+                   auth_class=Authentication)

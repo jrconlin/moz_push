@@ -6,7 +6,7 @@ from notifserver.controllers import BaseController
 
 # TODO: This needs to be integrated to the LDAP server (for end user control).
 
-class NotifServerAuthentication(Authentication, BaseController):
+class NotifServerAuthentication(Authentication):
 
     def get_session_uid(self, request):
         return "1"

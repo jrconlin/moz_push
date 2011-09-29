@@ -62,7 +62,7 @@ class ClientAgent(BaseController):
 
     def new_queue(self, request):
         """ Create a new queue for the user. (queues hold subscriptions) """
-        username = request.environ['REMOTE_USER']
+        import pdb; pdb.set_trace();
         self._init(self.app.config)
 
         try:
@@ -75,6 +75,7 @@ class ClientAgent(BaseController):
 
     def new_subscription(self, request):
         """ Generate a new subscription ID for the user's queue. """
+        import pdb; pdb.set_trace();
         username = request.environ['REMOTE_USER']
         self._init(self.app.config)
 
