@@ -46,6 +46,7 @@ from services.config import Config
 from notifserver import VERSION
 from notifserver.wsgiapp import make_app
 from notifserver.storage import get_message_backend
+from notifserver.auth.jws import JWS
 
 
 class ClientAgentTest(unittest.TestCase):
@@ -69,40 +70,48 @@ class ClientAgentTest(unittest.TestCase):
 
     def set_credentials(self, username=None, password=None):
         self.username = username
+        if password is None:
+            jws = JWS()
+            password = jws.sign(header={'alg': 'NONE',
+                                        'typ': 'IDAssertion'},
+                                payload={'exp': int(time.time()+300),
+                                         'moz-vep-id': username})
         self.password = password
 
     def create_queue(self):
         res = self.app.post("/%s/new_queue" % VERSION,
-            extra_environ={'REMOTE_USER': self.username})
+            extra_environ={'test_session.uid': self.username})
         assert res.status_int == 200
         return json.loads(res.body)
 
     def create_subscription(self, token):
         res = self.app.post("/%s/new_subscription" % VERSION,
             json.dumps({'token': token}),
-            extra_environ={'REMOTE_USER': self.username})
+            content_type="application/json",
+            extra_environ={'test_session.uid': self.username})
         assert res.status_int == 200
 
     def remove_subscription(self, token, success_response = 200):
         res = self.app.post("/%s/remove_subscription" % VERSION,
             json.dumps({'token': token}),
             status = success_response,
-            extra_environ={'REMOTE_USER': self.username})
+            content_type="application/json",
+           extra_environ={'test_session.uid': self.username})
         assert res.status_int == success_response
 
     def send_broadcast(self, message = None):
         if message is None:
             message = "'this is a broadcast message'"
-        self.set_credentials("testuser", "mypassword")
-        self.app.post("/%s/broadcast" % VERSION,
+        self.app.post("/%s/broadcast" % (VERSION),
             message,
-            extra_environ={'REMOTE_USER': self.username})
+            content_type = "application/json",
+            extra_environ = {'test_session.uid': self.username})
         # TODO: Figure out a way to extract messages from queues in tests
         # For now we assume all is well if "200 OK" returned
 
     def test_create_queue(self):
         self.set_credentials(self.config.get('tests.user', 'testuser'),
-                             self.config.get('tests.password', "mypassword"))
+                         self.config.get('tests.password', None))
         queue_info = self.create_queue()
         assert 'queue_id' in queue_info
         assert 'host' in queue_info
@@ -113,7 +122,7 @@ class ClientAgentTest(unittest.TestCase):
 
     def test_subscriptions(self):
         self.set_credentials(self.config.get('tests.user', 'testuser'),
-                             self.config.get('tests.password', "mypassword"))
+                         self.config.get('tests.password', None))
         token = "TEST123456789"
 
         # Can't delete subscription if it doesn't exist
@@ -130,7 +139,7 @@ class ClientAgentTest(unittest.TestCase):
 
     def test_broadcasts(self):
         self.set_credentials(self.config.get('tests.user', "testuser"),
-                             self.config.get('tests.password', "mypassword"))
+                         self.config.get('tests.password', None))
         queue_info = self.create_queue()
         ciphertext = 'test_12345'
         self.send_broadcast(

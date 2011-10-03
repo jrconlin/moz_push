@@ -168,6 +168,8 @@ class RedisStorage(object):
         """ append message to user's out queue
             queue = user/_tok/en_as_path/new_message_token
         """
+        if message is None or username is None:
+            raise NotifStorageException("incomplete storage request")
         max_msgs = int(self.config.get('redis.max_msgs_per_user', '200'))
         file_ok = False
         doc_path = self._user_storage_path(username)

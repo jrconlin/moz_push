@@ -12,20 +12,25 @@ class NotifServerAuthentication(object):
     """ for this class, username = user's email address, password = assertion """
 
     def __init__(self, *args, **kw):
+        import pdb; pdb.set_trace()
         self.config = kw.get('config', {})
         self.environ = kw.get('environ', {})
 
     def authenticate_user(self, user_name, password):
         """ Return a validated user id """
         try:
+            if user_name is None:
+                raise HTTPUnauthorized('No login info');
             raw_assertion = password;
             jws = JWS(config = self.config,
                       environ = {} )
             assertion = jws.parse(raw_assertion)
-
-            if (user_name != assertion.get('email')):
+            # get the latest id name, fail to old id name
+            email = assertion.get('moz-vep-id',
+                                    assertion.get('email'))
+            if (user_name != email):
                 log_cef('username does not match assertion value %s != %s ' %
-                        (user_name, assertion.get('email')),
+                        (user_name, email),
                         5,
                         environ = self.environ,
                         config = self.config)

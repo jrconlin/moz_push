@@ -61,17 +61,24 @@ class ClientAgent(BaseController):
         self.auth.__init__(config = config)
 
     def _auth(self, request):
-        username = request.params.get('username')
-        password = request.params.get('password')
-        self.auth.authenticate_user(username,password);
+        if request.get('paste.testing',False):
+            username = request.environ.get('test_session.uid')
+            password = request.environ.get('test_session.password')
+        else:
+            username = request.params.get('username')
+            password = request.params.get('password')
+            self.auth.authenticate_user(username,password);
         request.environ['beaker.session']['uid'] = username
         request.environ['beaker.session']['assertion'] = password
 
     def _get_uid(self, request):
-        uid = request.environ.get('beaker.session', {}).get('uid', None)
+        """ Get the cached UID, or authenticate the user.
+        """
+        uid = self.get_session_uid(request)
         if uid is None:
             self._auth(request)
             return request.environ.get('beaker.session', {}).get('uid', None)
+        return uid
 
     def new_queue(self, request):
         """ Create a new queue for the user. (queues hold subscriptions) """
@@ -118,14 +125,13 @@ class ClientAgent(BaseController):
 
     def remove_subscription(self, request):
         """ Remove a subscription from a user's queue. """
-        username = self._get_uid(request)
         self._init(self.app.config)
-
+        username = self._get_uid(request)
         try:
             logger.debug("Remove subscription request: '%s'", request.body)
             subscription = json.loads(request.body)
         except ValueError, verr:
-            logger.error("Error parsing subscription JSONi %s" % str(verr))
+            logger.error("Error parsing subscription JSON %s" % str(verr))
             raise HTTPBadRequest("Invalid JSON")
 
         if 'token' not in subscription or not subscription['token']:
@@ -146,8 +152,8 @@ class ClientAgent(BaseController):
             raise HTTPInternalServerError()
 
     def broadcast(self, request):
-        username = self._get_uid(request)
         self._init(self.app.config)
+        username = self._get_uid(request)
 
         try:
             logger.debug("Broadcast request: '%s'", request.body)
@@ -168,11 +174,12 @@ class ClientAgent(BaseController):
         logger.info("Broadcasting message for user '%s'" % username)
 
         try:
-            self.msg_backend.send_broadcast(request.body, username)
+            self.msg_backend.send_broadcast(request.body,
+                                            username)
             return HTTPOk()
-        except:
-            logger.error("Error sending broadcast message to user '%s'" %
-                    username)
+        except Exception, e:
+            logger.error("Error sending broadcast message to user '%s' [%s]" %
+                    (username, str(e)))
             raise HTTPInternalServerError()
 
 """
