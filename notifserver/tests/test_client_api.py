@@ -110,7 +110,7 @@ class ClientAgentTest(unittest.TestCase):
         # For now we assume all is well if "200 OK" returned
 
     def test_create_queue(self):
-        self.set_credentials(self.config.get('tests.user', 'testuser'),
+        self.set_credentials(self.config.get('tests.user', 'test@example.com'),
                          self.config.get('tests.password', None))
         queue_info = self.create_queue()
         assert 'queue_id' in queue_info
@@ -121,7 +121,7 @@ class ClientAgentTest(unittest.TestCase):
         assert queue_info['port']
 
     def test_subscriptions(self):
-        self.set_credentials(self.config.get('tests.user', 'testuser'),
+        self.set_credentials(self.config.get('tests.user', 'test@example.com'),
                          self.config.get('tests.password', None))
         token = "TEST123456789"
 
@@ -138,7 +138,7 @@ class ClientAgentTest(unittest.TestCase):
         self.remove_subscription(token, success_response = 400)
 
     def test_broadcasts(self):
-        self.set_credentials(self.config.get('tests.user', "testuser"),
+        self.set_credentials(self.config.get('tests.user', "test@example.com"),
                          self.config.get('tests.password', None))
         queue_info = self.create_queue()
         ciphertext = 'test_12345'
@@ -150,11 +150,11 @@ class ClientAgentTest(unittest.TestCase):
                                         "ttl": 1}),
                         "HMAC": ""}))
         backend = get_message_backend(self.config)
-        messages = backend.get_pending_messages(self.config.get('tests.user'))
+        messages = backend.get_pending_messages(self.username)
         self.assertEqual(
                     json.loads(messages[0].get('body')).get('ciphertext'),
                          ciphertext)
         #wait for the message to expire.
         time.sleep(2)
-        messages = backend.get_pending_messages(self.config.get('tests.user'))
+        messages = backend.get_pending_messages(self.username)
         self.assertEqual(len(messages), 0)

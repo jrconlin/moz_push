@@ -59,7 +59,7 @@ class TestStorage(unittest.TestCase):
 
     def test_all(self):
         storage = get_message_backend(self.config)
-        username = 'testuser'
+        username = self.config.get('tests.user', 'test@example.com')
         test_token = 'unit_test_token_123'
         origin = 'nowhere'
         test_message = json.dumps({"body": json.dumps({
