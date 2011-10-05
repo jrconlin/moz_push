@@ -1,0 +1,43 @@
+Delivered-To: saladbarbarian@gmail.com
+Received: by 10.147.40.15 with SMTP id s15cs52591yaj;
+        Fri, 29 Jul 2011 11:23:03 -0700 (PDT)
+Received: by 10.220.116.66 with SMTP id l2mr426381vcq.253.1311963782841;
+        Fri, 29 Jul 2011 11:23:02 -0700 (PDT)
+Return-Path: <jconlin@mozilla.com>
+Received: from dm-mail01.mozilla.org (dm-mail01.mozilla.org [63.245.208.150])
+        by mx.google.com with ESMTP id q14si1731354vcq.173.2011.07.29.11.23.02;
+        Fri, 29 Jul 2011 11:23:02 -0700 (PDT)
+Received-SPF: neutral (google.com: 63.245.208.150 is neither permitted nor denied by best guess record for domain of jconlin@mozilla.com) client-ip=63.245.208.150;
+Authentication-Results: mx.google.com; spf=neutral (google.com: 63.245.208.150 is neither permitted nor denied by best guess record for domain of jconlin@mozilla.com) smtp.mail=jconlin@mozilla.com
+X-Virus-Scanned: amavisd-new at mozilla.org
+Received: from [10.250.4.166] (v74-nslb.mozilla.org [10.2.74.4])
+	(Authenticated sender: jconlin@mozilla.com)
+	by dm-mail01.mozilla.org (Postfix) with ESMTP id 29283B8390
+	for <saladbarbarian@gmail.com>; Fri, 29 Jul 2011 11:23:01 -0700 (PDT)
+Message-ID: <4E32FA87.4010101@mozilla.com>
+Date: Fri, 29 Jul 2011 11:23:03 -0700
+From: JR Conlin <jconlin@mozilla.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:6.0) Gecko/20110714 Thunderbird/6.0
+MIME-Version: 1.0
+To: saladbarbarian@gmail.com
+Subject: test file
+Content-Type: multipart/mixed;
+ boundary="------------020801040108080806000307"
+
+This is a multi-part message in MIME format.
+--------------020801040108080806000307
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+
+test message
+
+--------------020801040108080806000307
+Content-Type: text/json;
+ name="notification.json"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="notification.json"
+
+{"body": "{\"timestamp\": 1321976630, \"token\":\"48a0dc3b0751c413b93569e60a32de4158f61a24a099a2353fd9f67132b288b7\", \"IV\": \"MNegZvCCMZK5W2BbPqPc9g==\",\"ciphertext\": \"mary had a little lamb. She had it with mint jelly\", \"ttl\": 300}", "HMAC": "b03d25f5753e935bdabd1b6eca361ca9"} 
+
+--------------020801040108080806000307--

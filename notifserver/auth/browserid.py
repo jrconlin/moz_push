@@ -12,7 +12,6 @@ class NotifServerAuthentication(object):
     """ for this class, username = user's email address, password = assertion """
 
     def __init__(self, *args, **kw):
-        import pdb; pdb.set_trace()
         self.config = kw.get('config', {})
         self.environ = kw.get('environ', {})
 

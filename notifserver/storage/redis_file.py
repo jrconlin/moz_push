@@ -82,6 +82,23 @@ class RedisStorage(object):
                                 user_token[4:8],
                                 user_token[8:])
 
+    def user_info(self, username, user_info = None):
+        try:
+            if user_info is None:
+                # Fetch the user's information
+                user_info = self.redis.get('ui:%s' % username)
+                if user_info is not None:
+                    return json.loads(user_info)
+                else:
+                    return {}
+            else:
+                self.redis.set('ui:%s' % username, json.dumps(user_info))
+                return user_info
+        except Except, e:
+            logger.error("Could not access user info %s, %s" % (username,
+                                                                str(e)))
+            raise
+
     def new_token(self):
         return "%x" % random.getrandbits(256)
 

@@ -1,0 +1,360 @@
+Delivered-To: saladbarbarian@gmail.com
+Received: by 10.147.40.15 with SMTP id s15cs52591yaj;
+        Fri, 29 Jul 2011 11:23:03 -0700 (PDT)
+Received: by 10.220.116.66 with SMTP id l2mr426381vcq.253.1311963782841;
+        Fri, 29 Jul 2011 11:23:02 -0700 (PDT)
+Return-Path: <jconlin@mozilla.com>
+Received: from dm-mail01.mozilla.org (dm-mail01.mozilla.org [63.245.208.150])
+        by mx.google.com with ESMTP id q14si1731354vcq.173.2011.07.29.11.23.02;
+        Fri, 29 Jul 2011 11:23:02 -0700 (PDT)
+Received-SPF: neutral (google.com: 63.245.208.150 is neither permitted nor denied by best guess record for domain of jconlin@mozilla.com) client-ip=63.245.208.150;
+Authentication-Results: mx.google.com; spf=neutral (google.com: 63.245.208.150 is neither permitted nor denied by best guess record for domain of jconlin@mozilla.com) smtp.mail=jconlin@mozilla.com
+X-Virus-Scanned: amavisd-new at mozilla.org
+Received: from [10.250.4.166] (v74-nslb.mozilla.org [10.2.74.4])
+	(Authenticated sender: jconlin@mozilla.com)
+	by dm-mail01.mozilla.org (Postfix) with ESMTP id 29283B8390
+	for <saladbarbarian@gmail.com>; Fri, 29 Jul 2011 11:23:01 -0700 (PDT)
+Message-ID: <4E32FA87.4010101@mozilla.com>
+Date: Fri, 29 Jul 2011 11:23:03 -0700
+From: JR Conlin <jconlin@mozilla.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:6.0) Gecko/20110714 Thunderbird/6.0
+MIME-Version: 1.0
+To: saladbarbarian@gmail.com
+Subject: test file
+Content-Type: multipart/mixed;
+ boundary="------------020801040108080806000307"
+
+This is a multi-part message in MIME format.
+--------------020801040108080806000307
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+
+test message
+
+--------------020801040108080806000307
+Content-Type: text/json;
+ name="notification.json"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="notification.json"
+
+{"body": "{\"timestamp\": 1321976630, \"token\":\"MTIzNDU2Nzg5MA==\", \"IV\": \"MNegZvCCMZK5W2BbPqPc9g==\",\"ciphertext\": \"mary had a little lamb. She had it with mint jelly\", \"ttl\": 300}", "HMAC": "b03d25f5753e935bdabd1b6eca361ca9"} 
+
+--------------020801040108080806000307--
+""" ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is push/injector.py
+ *
+ * The Initial Developer of the Original Code is
+ * J-R Conlin (jrconlin@mozilla.com).
+ * Portions created by the Initial Developer are Copyright (C) 2011
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK *****
+"""
+
+""" Note: Since this is a support file that may be run on a minimally
+configured host, this file has been constructed to be as stand-alone as
+possible.  """
+
+import json
+import email
+import base64
+import hmac
+import os
+import getopt
+import sys
+import time
+import logging
+
+import pdb
+
+from config import Config
+from email import email
+
+#logger = logging.getLogger('services')
+class logger():
+
+    @classmethod
+    def warning(klass, msg):
+        print >> stderr, "**** %s " % msg
+
+    @classmethod
+    def error(klas, msg):
+        print >> stderr, "#### %s " % msg
+
+
+class Notification():
+    def __init__(self, token, encryption_key, hmac_key, payload = None):
+        self.token = token
+        self.encryption_key = encryption_key
+        self.hmac_key = hmac_key
+        if payload:
+            return self.create_notification(payload)
+
+    def create_notification(self, payload, timestamp=None, ttl=None):
+        """Creates a notification for this subscription.
+
+        The resulting notification will only be readable by the intended
+        recipient of the subscription (i.e. the user with the decryption key).
+
+        Arg:
+            payload: String payload.
+
+            timestamp: UNIX timestamp of when the notification was sent.
+
+            ttl: Amount of time (in seconds) before this notification expires.
+
+        Return:
+            Dictionary of the following form:
+            {
+                "body": "{
+                    \"token\": \"BASE64==\",
+                    \"timestamp\": ##########,
+                    \"ttl\": #######,
+                    \"ciphertext\": \"BASE64==\",
+                    \"IV\": \"BASE64==\"
+                }",
+                "HMAC": "BASE64=="
+            }
+
+            Notice that the contents of the "body" field is not a dictionary,
+            but a string representation of a JSON object. The "HMAC" field is
+            the base64-encoded value of the HMAC of the contents of "body".
+            The ciphertext is the base64 encoding of the encrypted payload
+            string.
+
+        """
+
+        timestamp = timestamp or int(time.time())
+        ttl = ttl or 2*24*60*60
+
+        iv = os.urandom(16)
+        iv_b64 = base64.b64encode(iv)
+
+        # Add PKCS5 padding
+        block_size = 16
+        pad = lambda s: s + (block_size - len(s) % block_size) * chr(block_size - len(s) % block_size)
+
+        cipher = AES.new(self.encryption_key, AES.MODE_CBC, iv)
+        ciphertext = cipher.encrypt(pad(payload))
+        ciphertext_b64 = base64.b64encode(ciphertext)
+
+        body = json.dumps({
+            "token": self.token,
+            "timestamp": timestamp,
+            "ttl": ttl,
+            "ciphertext": ciphertext_b64,
+            "IV": iv_b64,
+        })
+
+        hmac_b64 = base64.b64encode(hmac.new(
+            self.hmac_key,
+            body,
+            hashlib.sha256
+        ).digest())
+
+        notif = {
+            "body": body,
+            "HMAC": hmac_b64,
+        }
+
+        return notif
+
+class Reader():
+    config = None;
+
+    """ Read the input stream """
+    def __init__(self, config = None):
+        self.config = config
+        self.processor = Processor(self.config)
+
+    def parse_message(self, message):
+        #try:
+            from_addr = message
+            if message.is_multipart():
+                for part in message.get_payload():
+                    if 'text/json' in part.get_content_type().lower():
+                        pdb.set_trace()
+                        content = json.loads(part.get_payload())
+                        self.processor.process(json.loads(part.get_payload()),
+                                    senders = message.get_all('Received'))
+        #except Exception, e:
+           #pdb.set_trace()
+           #logger.error("Badness! %s" % str(e))
+
+    def read_files(self, file_list):
+        for file in file_list:
+            try:
+                message = email.message_from_file(open(file))
+                self.parse_message(message)
+            except IOError, e:
+                pdb.set_trace()
+                logger.error("File not found or readable %s" % file)
+
+    def read_stream(self, stream):
+        try:
+            buffer = ("\n").join(stream.readlines())
+            message = email.message_from_string(buffer)
+            self.parse_message(message)
+        except IOError, e:
+            pdb.set_trace()
+            logger.error("stream not found or readable")
+
+class Processor:
+    config = None
+    distributor = None
+
+    def __init__(self, config = None, notification = None, **kw):
+        self.config = config
+        self.distributor = _resolve_name(config.get('notif.distributor',
+
+                                            'injector.Dummy_Distributor'))
+        if notification:
+            self.process(notification)
+
+    def is_valid(self, notification):
+        """Gauntlet of checks and balances"""
+        #check contents
+        try:
+            for field in ['body', 'HMAC']:
+                if field not in notification:
+                    logger.error("Notification is missing field '%s'" % field)
+                    return False
+            body = json.loads(notification['body'])
+            pdb.set_trace()
+            now = int(time.time())
+            expry = body.get('timestamp', now)+ body.get('ttl',30*24*60*60)
+            if expry < now:
+                logger.error("Notification has expired")
+                return False
+            for field in ['token', 'ciphertext']:
+                if field not in body:
+                    logger.error("Notification body missing field %s" % field)
+                    return False
+        except (KeyError, ValueError), e:
+            logger.error("Invalid token, %s" % e.message)
+            return False
+        ## TODO:
+        return True
+
+    def process(self, notification, senders = None, **kw):
+        if self.is_valid(notification):
+            self.distributor(self.config,
+                             notification,
+                             senders)
+
+
+class Dummy_Distributor:
+    config = None
+
+    def __init__(self,
+                 config = None,
+                 notification = None,
+                 senders = None,
+                 **kw):
+        if config:
+            self.config = config
+        if notification:
+            self.distribute(notification, senders)
+
+    def distribute(self,
+                   notification,
+                   senders = None,
+                   **kw):
+        print "Notification %s" % str(json.dumps(notification))
+        pdb.set_trace()
+        if senders is not None:
+            print "\t" + "\n\t".join(senders)
+
+
+def tester(config = None):
+    """ Build a fake JSON object. """
+    if config is None:
+        config = {}
+    test = {'token': base64.b64encode('1234567890'),
+            'timestamp': int(time.time()),
+            'ttl': 300,
+            'ciphertext':'mary had a little lamb. She had it with mint jelly',
+            'IV': base64.b64encode(os.urandom(16))}
+    test_txt = json.dumps(test)
+    token  = {'body': test_txt,
+              'HMAC': hmac.new(test_txt,
+                               config.get('notif.hmac_key',
+                                          'None')).hexdigest()}
+    return token
+
+def _resolve_name(name):
+    """ Resolve and load a package from it's dot name name """
+    ret = None
+    parts = name.split('.')
+    cursor = len(parts)
+    module_name = parts[:cursor]
+
+    while cursor > 0:
+        try:
+            ret = __import__('.'.join(module_name))
+            break
+        except ImportError:
+            if cursor == 0:
+                raise
+            cursor -= 1
+            module_name = parts[:cursor]
+
+    for part in parts[1:]:
+        try:
+            ret = getattr(ret, part)
+        except AttributeError:
+            raise ImportError(name)
+    if ret is None:
+        raise ImportError(name)
+
+    return ret
+
+
+if __name__ == '__main__':
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'c:d', ['config='])
+        config = None
+        for opt, val in opts:
+            if opt in '--config' :
+                config = Config(val).get_map()
+
+        if config is None:
+            if os.path.exists('./injector.ini'):
+                config = Config('./injector.ini').get_map()
+        reader = Reader(config)
+        if len(args):
+            reader.read_files(args)
+        else:
+            logger.warning('No file specified, reading from STDIN:')
+            reader.read_stream(sys.stdin)
+
+    except getopt.GetoptError, e:
+        logger.error(str(e))
+        sys.exit(2)
