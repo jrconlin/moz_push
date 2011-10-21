@@ -11,18 +11,17 @@ BROKER_ADMIN_PASSWORD = admin
 
 .PHONY:	all env rabbitmq
 
-all:	env
+all:	clean-env env
 
 env:
-	rm -rf bin build deps include lib lib64
 	$(VIRTUALENV) --no-site-packages --distribute .
-	$(PYTHON) setup.py develop
+	$(PYTHON) setup.py install
 	mkdir -p deps
 	cd deps && hg clone http://hg.mozilla.org/services/server-core
-	cd deps/server-core && ../../$(PYTHON) setup.py develop
+	cd deps/server-core && ../../$(PYTHON) setup.py install
 
 clean-env:
-	rm -rf bin build deps include lib lib64S
+	rm -rf bin build deps include lib lib64
 
 rabbitmq:
 	mkdir -p bin

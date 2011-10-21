@@ -37,16 +37,17 @@
 # ***** END LICENSE BLOCK *****
 
 import abc
+import random
 import logging
 from services.pluginreg import (PluginRegistry, load_and_configure)
 
 # Use this logger for all MessageStorage plugins
-logger = logging.getLogger('messagestorage')
+logger = logging.getLogger('push_storage')
 
 
 class NotifStorageException (Exception):
 
-    def __init(self, msg):
+    def __init__(self, msg):
         self.msg = msg
 
     def __str__(self):
@@ -162,3 +163,16 @@ class MessageStorage(PluginRegistry):
 
 def get_message_backend(config):
     return load_and_configure(config, cls_param = "notifserver.backend")
+
+
+def new_token():
+    CHARSET = "0123456789abcdefghijklmnopqrstuvwxyz"
+    token_length = 256
+    value = random.getrandbits(token_length)
+    base = len(CHARSET)
+    result = ""
+    while value:
+        result = CHARSET[value % (base)] + result
+        value //= base
+    return result
+

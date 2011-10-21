@@ -34,11 +34,10 @@
 #
 # ***** END LICENSE BLOCK *****
 import json
-import random
 import pymongo
 import time
 
-from notifserver.storage import (logger)
+from notifserver.storage import (logger, new_token)
 from pymongo.errors import OperationFailure
 
 
@@ -76,13 +75,10 @@ class MongoStorage(object):
     def get_name(cls):
         return 'mongo'
 
-    def new_token(self):
-        return "%x" % random.getrandbits(256)
-
     def create_client_queue(self, username):
         # create the mapping record
 
-        channel_info = {u'token': self.new_token(),
+        channel_info = {u'token': new_token(),
                         u'user_id': username,
                         u'type': 'queue',
                         u'created': int(time.time())

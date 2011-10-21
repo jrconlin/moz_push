@@ -42,7 +42,9 @@ import logging
 from services.formatters import json_response
 from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
 from notifserver.controllers import BaseController
-from notifserver.storage import (get_message_backend, NotifStorageException)
+from notifserver.storage import (get_message_backend,
+                                 new_token,
+                                 NotifStorageException)
 
 logger = logging.getLogger('clientagent')
 
@@ -71,10 +73,12 @@ class ClientAgent(BaseController):
         request.environ['beaker.session']['uid'] = username
         request.environ['beaker.session']['assertion'] = password
 
-    def _get_uid(self, request):
+    def _get_uid(self, request, doAuth = True):
         """ Get the cached UID, or authenticate the user.
         """
         uid = self.get_session_uid(request)
+        if doAuth == False:
+            return None
         if uid is None:
             self._auth(request)
             return request.environ.get('beaker.session', {}).get('uid', None)
@@ -91,6 +95,16 @@ class ClientAgent(BaseController):
             return json_response(result)
         except Exception, e:
             logger.error("Error creating client queue %s" % str(e))
+            raise HTTPInternalServerError
+
+    def new_token(self, request):
+        """ Create an return a new valid token """
+        self._init(self.app.config)
+        try:
+            token = new_token()
+            return json_response(token)
+        except Exception, e:
+            logger.error("Error generating token %s" % str(e))
             raise HTTPInternalServerError
 
     def new_subscription(self, request):
@@ -146,7 +160,7 @@ class ClientAgent(BaseController):
             self.msg_backend.delete_subscription(username, token)
             return HTTPOk()
         except NotifStorageException, e:
-            return HTTPBadRequest(e.args[0])
+            return HTTPBadRequest(str(e))
         except Exception, e:
             logger.error("Error deleting subscription, %s" % str(e))
             raise HTTPInternalServerError()
@@ -181,6 +195,23 @@ class ClientAgent(BaseController):
             logger.error("Error sending broadcast message to user '%s' [%s]" %
                     (username, str(e)))
             raise HTTPInternalServerError()
+
+    def index(self, request):
+        self._init(self.app.config)
+        username = self._get_uid(request, doAuth=False)
+        if username is None:
+            # display login page
+           self.get_template("not_logged_in")
+        else:
+            self.get_template("logged_in")
+        content_type = "text/html"  # it's always text/html
+        response = {}
+
+        body = template.render(request = request,
+                                config = self.app.config,
+                                response = response)
+        return Response(str(body),
+                        content_type = content_type)
 
 """
 def make_client_agent(global_config, **local_config):

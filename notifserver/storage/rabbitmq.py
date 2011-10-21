@@ -39,11 +39,10 @@
 import base64
 import httplib
 import json
-import random
 import urllib
 import pika
 
-from notifserver.storage import (logger, NotifStorageException)
+from notifserver.storage import (logger, NotifStorageException, new_token)
 from pika.adapters.select_connection import SelectConnection
 
 
@@ -119,16 +118,13 @@ class RabbitMQStorage(object):
     def _get_http_conn(self):
         return self.http_conn
 
-    def new_token(self):
-        return "%x" % random.getrandbits(256)
-
     def create_client_queue(self, username):
         self.channel_info = {}
         self.channel_info['exchange_name'] = username
-        self.channel_info['queue_name'] = self.new_token()
+        self.channel_info['queue_name'] = new_token()
 
         # Create a unique client id to also be used as the name of the queue
-        client_queue_name = self.new_token()
+        client_queue_name = new_token()
 
         logger.info("Creating queue %s for user %s",
                         self.channel_info.get('queue_name'),

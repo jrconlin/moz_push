@@ -137,6 +137,15 @@ class ClientAgentTest(unittest.TestCase):
         # Can't delete subscription if already deleted
         self.remove_subscription(token, success_response = 400)
 
+    def test_token(self):
+        try:
+            import pdb; pdb.set_trace();
+            res = self.app.get("/%s/new_token" % VERSION)
+            token = json.loads(res.body)
+
+        except Exception, e:
+            print str(e)
+
     def test_broadcasts(self):
         self.set_credentials(self.config.get('tests.user', "test@example.com"),
                          self.config.get('tests.password', None))

@@ -58,6 +58,8 @@ urls = [
                 'ca', 'new_subscription'),
         ('POST', '/%s/remove_subscription' % VERSION,
                 'ca', 'remove_subscription'),
+        (('GET', 'POST'), '/%s/new_token' % VERSION,
+                'ca', 'new_token'),
         ('POST', '/%s/broadcast' % VERSION,
                 'ca', 'broadcast'),
         # Always list the index (least specific path) last

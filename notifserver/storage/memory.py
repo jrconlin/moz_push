@@ -37,7 +37,6 @@
 # ***** END LICENSE BLOCK *****
 
 from Queue import Queue
-import random
 import threading
 
 from notifserver.storage import (logger, new_token)
@@ -61,9 +60,6 @@ class MemoryStorage(object):
     @classmethod
     def get_name(cls):
         return 'memory'
-
-    def new_token(self):
-        return "%s" % random.getrandbits(256)
 
     def create_client_queue(self, username):
         self.mutex.acquire()

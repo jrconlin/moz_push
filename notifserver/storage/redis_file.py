@@ -34,14 +34,12 @@
 #
 # ***** END LICENSE BLOCK *****
 
-import base64
 import json
-import random
 import time
 import redis
 import os
 
-from notifserver.storage import (logger, NotifStorageException)
+from notifserver.storage import (logger, NotifStorageException, new_token)
 
 
 class RedisStorage(object):
@@ -66,6 +64,9 @@ class RedisStorage(object):
                 um_object={file: path to message storage
                             expry: freshness date
                             id: message sequence number}
+            ui: user meta info (keyed off of username,
+                JSON hash of values associated with this user, (android access
+                token, etc.))
         """
 
     @classmethod
@@ -94,13 +95,10 @@ class RedisStorage(object):
             else:
                 self.redis.set('ui:%s' % username, json.dumps(user_info))
                 return user_info
-        except Except, e:
+        except Exception, e:
             logger.error("Could not access user info %s, %s" % (username,
                                                                 str(e)))
             raise
-
-    def new_token(self):
-        return "%x" % random.getrandbits(256)
 
     def create_client_queue(self, username):
         logger.info("Creating incoming queue for user %s" % username)
@@ -109,7 +107,7 @@ class RedisStorage(object):
             # ut: user -> token
             user_token = self.redis.get('u2t:%s' % username)
             if user_token is None:
-                user_token = self.new_token()
+                user_token = new_token()
                 self.redis.set('u2t:%s' % username, user_token)
                 self.redis.set('t2u:%s' % user_token, username)
             return {'queue_id': user_token,
@@ -195,7 +193,7 @@ class RedisStorage(object):
             os.makedirs(doc_path)
         try:
             while (not file_ok):
-                doc_file = base64.urlsafe_b64encode(self.new_token())
+                doc_file = new_token()
                 file_ok = not os.path.isfile(os.path.join(doc_path, doc_file))
             file_path = os.path.join(doc_path, doc_file)
             file = os.open(file_path, os.O_WRONLY | os.O_CREAT)

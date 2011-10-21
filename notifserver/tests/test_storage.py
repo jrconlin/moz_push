@@ -74,8 +74,9 @@ class TestStorage(unittest.TestCase):
         #Send a message to the user.
         storage.send_broadcast(test_message, username, origin = origin)
         msgs = storage.get_pending_messages(username)
+        self.assertEqual(json.loads(msgs[0].get('body')).get('token'),
+                         test_token)
         storage._purge(username = username)
-
         #Send a message to a user based on their queue id (most common path)
         storage.publish_message(test_message,
                                 queue_info.get('queue_id'),
