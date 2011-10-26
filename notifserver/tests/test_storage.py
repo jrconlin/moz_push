@@ -60,8 +60,8 @@ class TestStorage(unittest.TestCase):
     def test_all(self):
         storage = get_message_backend(self.config)
         username = self.config.get('tests.user', 'test@example.com')
-        test_token = 'unit_test_token_123'
-        origin = 'nowhere'
+        test_token = 'TEST123'
+        origin = 'example.com'
         test_message = json.dumps({"body": json.dumps({
                                                 "token": test_token,
                                                 "timestamp": int(time.time()),
@@ -72,7 +72,10 @@ class TestStorage(unittest.TestCase):
         subs = storage.create_subscription(username, test_token)
 
         #Send a message to the user.
-        storage.send_broadcast(test_message, username, origin = origin)
+        storage.send_broadcast(test_message, 
+                    username, 
+                    origin = origin, 
+                    queue = test_token)
         msgs = storage.get_pending_messages(username)
         self.assertEqual(json.loads(msgs[0].get('body')).get('token'),
                          test_token)

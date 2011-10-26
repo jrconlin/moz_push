@@ -59,6 +59,7 @@ class RedisStorage(object):
             u2t: username to user token
             t2u: user token to username
             s2u: subscription token to username
+            sin: (username:token) subscription info table (hash)
             u2s: username to subscription tokens (list)
             u2m: username to all messages (list of objects)
                 um_object={file: path to message storage
@@ -110,13 +111,17 @@ class RedisStorage(object):
                 user_token = new_token()
                 self.redis.set('u2t:%s' % username, user_token)
                 self.redis.set('t2u:%s' % user_token, username)
+                info = {"created": int(time.time()),
+                     "state": 'active',
+                     "changedate": int(time.time())}
+                self.redis.hmset('sin:%s:%s' % (username, user_token), info)
             return {'queue_id': user_token,
                     'port': self.config.get('notifserver.port', 80),
                     'host': self.config.get('notifserver.host')}
         except Exception, ex:
             logger.error("Could not create user queue %s" % str(ex))
 
-    def create_subscription(self, username, token):
+    def create_subscription(self, username, token, origin = None):
         """ Map a token to a username """
         # s2u: subscription to user
         # u2s: user subscriptions
@@ -132,6 +137,14 @@ class RedisStorage(object):
         user_tokens = self.redis.lrange("u2s:%s" % username, 0, -1)
         if token not in user_tokens:
             self.redis.lpush("u2s:%s" % username, token)
+            info = {"created": int(time.time()),
+                     "state": 'active',
+                     "changedate": int(time.time())}
+            self.redis.hmset("sin:%s:%s" % (username, token), info)
+            print ("Created sin:%s:%s" % (username, token))
+            if origin is not None:
+                self.redis.hset("sin:%s:%s" % (username, token),
+                        "origin", origin)
         return retObj
 
     def delete_subscription(self, username, token):
@@ -145,8 +158,12 @@ class RedisStorage(object):
         # remove all instances of the token from the user's list
         # note, python redis reverses the lrem arguments, which is Awesome ._.
         self.redis.lrem('u2s:%s' % username, token, 1)
+        info = self.redis.hgetall('sin:%s:%s' % (username, token))
+        info.update({'state': 'deleted',
+                    'changedate': int(time.time())})
+        self.redis.hmset('sin:%s:%s' % (username, token), info)
         # remove pending messages of that subscription:
-        message_list = self.redis.lrange('u2m:%s' % username, 0, -1)
+        message_list = self.redis.lrange('u2m:%s' % username, 0, -1 )
         for message in message_list:
             redStore = json.loads(message)
             origin = redStore.get('origin', None)
@@ -158,7 +175,10 @@ class RedisStorage(object):
         # resolve token to user
         username = self.redis.get("t2u:%s" % token)
         if username:
-            return self.send_broadcast(message, username, origin = origin)
+            return self.send_broadcast(message, 
+                    username, 
+                    queue = token,
+                    origin = origin)
         return False
 
     def _cleanMessage(self, username, message):
@@ -176,10 +196,29 @@ class RedisStorage(object):
         # resolve queue to user
         username = self.redis.get("s2u:%s" % queue_name)
         if username:
-            self.send_broadcast(message, username, origin = origin)
+            self.send_broadcast(message, 
+                    username, 
+                    queue = queue_name, 
+                    origin = origin)
         return False
 
-    def send_broadcast(self, message, username, origin = None):
+    def get_queues(self, username):
+        result = {}
+        subscriptions = self.redis.lindex('u2s:%s' % username, -1)
+        if type(subscriptions) == type(''):
+            subscriptions = [subscriptions]
+        if subscriptions is not None:
+            for subscription in subscriptions:
+                info = self.redis.hgetall('sin:%s:%s' % (username, subscription))
+                info['queue_id'] = subscription
+                result[info.get('origin', 'None')] = info
+        return result
+
+    def send_broadcast(self, 
+                message, 
+                username, 
+                queue = None, 
+                origin = None):
         """ append message to user's out queue
             queue = user/_tok/en_as_path/new_message_token
         """
@@ -188,6 +227,8 @@ class RedisStorage(object):
         max_msgs = int(self.config.get('redis.max_msgs_per_user', '200'))
         file_ok = False
         doc_path = self._user_storage_path(username)
+        if queue is None:
+            queue = origin;
 
         if not os.path.exists(doc_path):
             os.makedirs(doc_path)
@@ -220,6 +261,10 @@ class RedisStorage(object):
                     'id': top_index + 1}
         logger.debug('Adding message for %s' % username)
         self.redis.lpush("u2m:%s" % username, json.dumps(redStore))
+        info = self.redis.hgetall("sin:%s:%s" % (username, queue))
+        info.update({'lastmsg': time.time(),
+                'lastorigin': origin}) 
+        self.redis.hmset("sin:%s:%s" % (username, queue), info)
         old = self.redis.lrange("u2m:%s" % username, 0, 0-max_msgs)
         if len(old):
             for message in old:

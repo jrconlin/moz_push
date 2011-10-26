@@ -61,7 +61,7 @@ class JWS:
         if config:
             self._config = config
         else:
-            config = {}
+            self._config = {}
         self.environ = environ
         self._sign = {'HS': self._sign_HS,
                  'RS': self._sign_RS,
@@ -82,7 +82,7 @@ class JWS:
             cef.log_cef("Invalid JWS Sign method specified %s", str(ex),
                         5,
                         self.environ,
-                        self.config)
+                        self._config)
             raise(JWSException("Unsupported encoding method specified"))
         header_str = base64.urlsafe_b64encode(json.dumps(header))
         payload_str = base64.urlsafe_b64encode(json.dumps(payload))
@@ -93,31 +93,50 @@ class JWS:
         else:
             return sbs
 
-    def parse(self, jws, **kw):
-        if not jws:
-            raise(JWSException("Cannot verify empty JWS"))
-        if self.verify(jws):
-            (head, payload_str, signature) = jws.split('.')
-            payload = json.loads(base64.b64decode(_check_b64pad(payload_str)))
-            return payload
-        else:
-            raise(JWSException("Invalid JWS"))
+    def _decode(self, dstr):
+        try:
+            return base64.urlsafe_b64decode(_check_b64pad(str(
+                dstr)))
+        except TypeError, e:
+            import pdb; pdb.set_trace()
+            print str(dstr);
 
-    def verify(self, jws, alg = None, **kw):
-        if not jws:
+    def parse(self, raw_jws, **kw):
+        jwso = json.loads(self._decode(raw_jws))
+        new_certs = []
+        for cert in jwso['certificates']:
+            (rhead, rpayload, rsig) = cert.split('.')
+            new_certs.append({'head': json.loads(self._decode(rhead)),
+                'payload': json.loads(self._decode(rpayload)),
+                'sig': self._decode(rsig)})
+        jwso['certificates'] = new_certs
+        (rhead, rpayload, rsig) = jwso['assertion'].split('.')
+        jwso['assertion'] = {'head': json.loads(self._decode(rhead)),
+                'payload': json.loads(self._decode(rpayload)),
+                'sig': self._decode('rsig')}
+        #TODO: Check the RSA signatures, return NONE if invalid
+        #self.verify(jwso)
+        return jwso
+
+
+    def verify(self, jwso):
+        import pdb; pdb.set_trace();
+        # TODO: Do verification
+        return True;
+
+        if not jwso:
             raise (JWSException("Cannot verify empty JWS"))
         try:
-            (header_str, payload_str, signature) = jws.split('.')
-            header = json.loads(base64.b64decode(_check_b64pad(header_str)))
+            import pdb; pdb.set_trace()
             if alg is None:
-                alg = header.get('alg', 'NONE')
+                alg = jwso['assertion']['head'].get('alg', 'NONE')
             try:
                 sigcheck = self._verify.get(alg[:2].upper())
             except KeyError, ex:
                 cef.log_cef("Invalid JWS Sign method specified %s", str(ex),
                             5,
                             self.environ,
-                            self.config)
+                            self._config)
                 raise(JWSException("Unsupported encoding method specified"))
             return sigcheck(alg,
                             header,
@@ -127,7 +146,7 @@ class JWS:
             cef.log_cef("JWS Verification error: %s" % ex,
                         5,
                         self.environ,
-                        self.config)
+                        self._config)
             raise(JWSException("JWS has invalid format"))
 
     def _sign_NONE(self, alg, header, sbs):

@@ -63,8 +63,8 @@ urls = [
         ('POST', '/%s/broadcast' % VERSION,
                 'ca', 'broadcast'),
         # Always list the index (least specific path) last
-        (('GET', 'POST'), '/%s' % VERSION,
-                'po', 'index'),
+        (('GET', 'POST'), '/', 
+                'ca', 'index'),
         ]
 
 controllers = {'ca': ClientAgent,
@@ -83,10 +83,20 @@ class NotificationServerApp(SyncServerApp):
         # __heartbeat__ is provided via the SyncServerApp base class
         # __debug__ is provided via global.debug_page in config.
 
+    def _get_params(self, request):
+        """ monkeypatch since uStrings are returned. """
+        result = {}
+        if request.method in ('GET', 'DELETE'):
+            dic = dict(request.GET)
+            for key in dic.keys():
+                result[str(key)] = str(dic[key])
+        return result
+
 
 def _wrap(app, config = {}, **kw):
     # Beaker session config are defined in production.ini[default].
     return SessionMiddleware(app, config = config)
+
 
 make_app = set_app(urls,
                    controllers,

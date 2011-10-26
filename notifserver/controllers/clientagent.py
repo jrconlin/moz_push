@@ -40,7 +40,9 @@ import json
 import logging
 
 from services.formatters import json_response
-from webob.exc import HTTPOk, HTTPBadRequest, HTTPInternalServerError
+from webob import Response
+from webob.exc import (HTTPOk, HTTPBadRequest, 
+            HTTPInternalServerError, HTTPUnauthorized)
 from notifserver.controllers import BaseController
 from notifserver.storage import (get_message_backend,
                                  new_token,
@@ -63,15 +65,18 @@ class ClientAgent(BaseController):
         self.auth.__init__(config = config)
 
     def _auth(self, request):
-        if request.get('paste.testing',False):
+        if request.params.get('paste.testing', False):
             username = request.environ.get('test_session.uid')
             password = request.environ.get('test_session.password')
         else:
             username = request.params.get('username')
             password = request.params.get('password')
-            self.auth.authenticate_user(username,password);
-        request.environ['beaker.session']['uid'] = username
-        request.environ['beaker.session']['assertion'] = password
+            user_id = self.auth.authenticate_user(username, password, 
+                    request = request)
+        session = request.environ['beaker.session']
+        session['uid'] = user_id
+        session.save()
+        return user_id
 
     def _get_uid(self, request, doAuth = True):
         """ Get the cached UID, or authenticate the user.
@@ -83,6 +88,13 @@ class ClientAgent(BaseController):
             self._auth(request)
             return request.environ.get('beaker.session', {}).get('uid', None)
         return uid
+
+    def _get_params(self, request):
+        params = dict(request.GET)
+        str_params = {}
+        for key, value in params:
+            str_params[str(key)] = str(value);
+        return str_params
 
     def new_queue(self, request):
         """ Create a new queue for the user. (queues hold subscriptions) """
@@ -110,17 +122,21 @@ class ClientAgent(BaseController):
     def new_subscription(self, request):
         """ Generate a new subscription ID for the user's queue. """
         #TODO add auth here too and all other REMOTE_USER instances.
+        import pdb; pdb.set_trace()
         self._init(self.app.config)
         username = self._get_uid(request)
-        self.auth.authenticate_user(username,
-                    request.params.get('password'));
-
+        if username is None:
+            raise HTTPUnauthorized()
+        origin = request.params.get('origin', 'UNKNOWN')
         try:
             logger.debug("New subscription request: '%s'", request.body)
             subscription = json.loads(request.body)
         except ValueError, verr:
-            logger.error("Error parsing subscription JSON  %s" % str(verr))
-            raise HTTPBadRequest("Invalid JSON")
+            if request.params.get('token', None):
+                subscription = {'token': request.params.get('token') }
+            else:
+                logger.error("Error parsing subscription JSON  %s" % str(verr))
+                raise HTTPBadRequest("Invalid JSON")
 
         if 'token' not in subscription or not subscription['token']:
             logger.error("Token not specified")
@@ -131,7 +147,8 @@ class ClientAgent(BaseController):
         logger.info("Subscribing user '%s' to token '%s'", username, token)
 
         try:
-            self.msg_backend.create_subscription(username, token)
+            self.msg_backend.create_subscription(username, token, 
+                    origin = origin)
             return HTTPOk()
         except:
             logger.error("Error creating subscription.")
@@ -196,20 +213,24 @@ class ClientAgent(BaseController):
                     (username, str(e)))
             raise HTTPInternalServerError()
 
-    def index(self, request):
+    def index(self, request, **kw):
         self._init(self.app.config)
-        username = self._get_uid(request, doAuth=False)
+        doAuth = len(kw) != 0
+        username = self._get_uid(request, doAuth = doAuth)
+        response = {'username': username }
         if username is None:
             # display login page
-           self.get_template("not_logged_in")
+           template = self.get_template("not_logged_in")
         else:
-            self.get_template("logged_in")
+            self.new_queue(request)
+            template = self.get_template("logged_in")
+            response['user_info'] = self.msg_backend.user_info(username)
+            response['subscriptions'] = self.msg_backend.get_queues(username)
         content_type = "text/html"  # it's always text/html
-        response = {}
-
         body = template.render(request = request,
                                 config = self.app.config,
-                                response = response)
+                                response = response
+                                )
         return Response(str(body),
                         content_type = content_type)
 

@@ -14,49 +14,55 @@ class NotifServerAuthentication(object):
     def __init__(self, *args, **kw):
         self.config = kw.get('config', {})
         self.environ = kw.get('environ', {})
+        self.username = None
+        self.assertion = None
+        self.raw_assertion = None
 
-    def authenticate_user(self, user_name, password):
+    def authenticate_user(self, user_name, password, request = None):
         """ Return a validated user id """
+        if password is None:
+            return None
         try:
-            if user_name is None:
-                raise HTTPUnauthorized('No login info');
+            if request:
+                self.environ = request.environ
             raw_assertion = password;
             jws = JWS(config = self.config,
-                      environ = {} )
+                      environ = request.environ)
             assertion = jws.parse(raw_assertion)
-            # get the latest id name, fail to old id name
-            email = assertion.get('moz-vep-id',
-                                    assertion.get('email'))
-            if (user_name != email):
-                log_cef('username does not match assertion value %s != %s ' %
-                        (user_name, email),
-                        5,
-                        environ = self.environ,
-                        config = self.config)
-                raise HTTPUnauthorized("Invalid assertion")
-            return assertion
+            # get the latest id name, fail to old id name 
+            email = assertion.get('certificates')[0]\
+                .get('payload').get('principal').get('email')
+            #email = assertion.get('moz-vep-id', assertion.get('email'))
+            self.username = email
+            self.assertion = assertion
+            self.raw_assertion = raw_assertion
+            return self.username
 
         except JWSException, e:
             log_cef("Error parsing assertion, %s" % e,
                     5,
-                    environ = self.environ,
+                    environ = request.environ,
                     config = self.config)
             raise HTTPUnauthorized("Invalid assertion")
         except (ValueError, KeyError), e:
+            import pdb; pdb.set_trace()
             log_cef("Unparsable request body %s" % str(e),
                     5, {}, {})
             raise HTTPUnauthorized("Invalid token")
 
     def get_user_id(self, user_name):
-        return user_name
+        return self.username
 
     def get_session_uid(self, request):
-        return "1"
+        return self.username
+
+    def get_assertion(self):
+        return self.raw_assertion
 
     def check(self, request, match):
         if self.get_session_uid(request) is not None:
             return
-#        user_id = self.authenticate_user(request, self.config)
+        user_id = self.authenticate_user(request, self.config)
         user_id = "1"
         if user_id is None:
             data = request.method, request.path_info, {}

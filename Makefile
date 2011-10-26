@@ -11,7 +11,7 @@ BROKER_ADMIN_PASSWORD = admin
 
 .PHONY:	all env rabbitmq
 
-all:	clean-env env
+#all:	clean-env env
 
 env:
 	$(VIRTUALENV) --no-site-packages --distribute .

@@ -105,7 +105,7 @@ class ClientAgentTest(unittest.TestCase):
         self.app.post("/%s/broadcast" % (VERSION),
             message,
             content_type = "application/json",
-            extra_environ = {'test_session.uid': self.username})
+            extra_environ = {'test_session.uid': self.username,})
         # TODO: Figure out a way to extract messages from queues in tests
         # For now we assume all is well if "200 OK" returned
 
@@ -123,7 +123,7 @@ class ClientAgentTest(unittest.TestCase):
     def test_subscriptions(self):
         self.set_credentials(self.config.get('tests.user', 'test@example.com'),
                          self.config.get('tests.password', None))
-        token = "TEST123456789"
+        token = "TEST123"
 
         # Can't delete subscription if it doesn't exist
         try:
@@ -139,7 +139,6 @@ class ClientAgentTest(unittest.TestCase):
 
     def test_token(self):
         try:
-            import pdb; pdb.set_trace();
             res = self.app.get("/%s/new_token" % VERSION)
             token = json.loads(res.body)
 

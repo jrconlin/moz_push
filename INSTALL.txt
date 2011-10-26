@@ -1,0 +1,11 @@
+For Redhat:
+$. bin/activate
+$ sudo yum install openssl-devel
+$ mkdir -p install
+$ cd install
+$ curl -O "http://pypi.python.org/packages/source/M/M2Crypto/M2Crypto-0.21.1.tar.gz"
+$ tar -zxvf M2Crypto-0.21.1.tar.gz
+$ M2Crypto-0.21.1.tar.gz fedora_setup.py
+
+Consider swapping out M2Crypto for something more sane
+
