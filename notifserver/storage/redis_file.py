@@ -65,6 +65,7 @@ class RedisStorage(object):
                 um_object={file: path to message storage
                             expry: freshness date
                             id: message sequence number}
+            ssu: username:origin to subscription
             ui: user meta info (keyed off of username,
                 JSON hash of values associated with this user, (android access
                 token, etc.))
@@ -121,19 +122,45 @@ class RedisStorage(object):
         except Exception, ex:
             logger.error("Could not create user queue %s" % str(ex))
 
+    def reactivate_subscription(self, username, token, origin):
+        tokeninfo = self.redis.hgetall('sin:%s:%s' % (username, token))
+        if tokeninfo is None:
+            tokeninfo = {"created": int(time.time()),
+                     "state": 'active',
+                     "changedate": int(time.time())}
+        else:
+            tokeninfo.update({"state": 'active',
+                              "changedate": int(time.time())})
+            self.redis.hmset('sin:%s:%s' % (username, token), tokeninfo)
+        tokens = self.redis.lrange('u2s:%s' % (username), 0, -1)
+        if token not in tokens:
+            self.redis.lpush('u2s:%s' % (username), token)
+        self.redis.set('s2u:%s' % (token), username)
+
     def create_subscription(self, username, token, origin = None):
         """ Map a token to a username """
         # s2u: subscription to user
         # u2s: user subscriptions
+
+        if username is None or token is None:
+            return {}
         retObj = {'queue_id': token,
                 'port': self.config.get('notifserver.port', 80),
                 'host': self.config.get('notifserver.host')}
-        if self.redis.get("s2u:%s" % token):
+        prevToken = self.redis.get('ssu:%s:%s' % (username, origin))
+        if prevToken is not None:
+            self.reactivate_subscription(username, prevToken, origin)
+            token = prevToken
+            retObj['queue_id'] = token
+            return retObj
+        mappedToken = self.redis.get("s2u:%s" % token)
+        if mappedToken is not None:
             if self.redis.get("s2u:%s" % token) == username:
                 return retObj
             logger.error("Token collision! %s" % token)
             return False
         self.redis.set("s2u:%s" % token, username)
+        self.redis.set("ssu:%s:%s" % (username, origin), token)
         user_tokens = self.redis.lrange("u2s:%s" % username, 0, -1)
         if token not in user_tokens:
             self.redis.lpush("u2s:%s" % username, token)
@@ -204,7 +231,7 @@ class RedisStorage(object):
 
     def get_queues(self, username):
         result = {}
-        subscriptions = self.redis.lindex('u2s:%s' % username, -1)
+        subscriptions = self.redis.lrange('u2s:%s' % username, 0, -1)
         if type(subscriptions) == type(''):
             subscriptions = [subscriptions]
         if subscriptions is not None:

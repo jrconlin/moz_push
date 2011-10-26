@@ -74,6 +74,7 @@ class ClientAgent(BaseController):
             user_id = self.auth.authenticate_user(username, password, 
                     request = request)
         session = request.environ['beaker.session']
+        logging.debug("Setting user_id to %s" % user_id)
         session['uid'] = user_id
         session.save()
         return user_id
@@ -82,9 +83,9 @@ class ClientAgent(BaseController):
         """ Get the cached UID, or authenticate the user.
         """
         uid = self.get_session_uid(request)
-        if doAuth == False:
-            return None
         if uid is None:
+            if doAuth == False:
+                return None
             self._auth(request)
             return request.environ.get('beaker.session', {}).get('uid', None)
         return uid
@@ -122,25 +123,26 @@ class ClientAgent(BaseController):
     def new_subscription(self, request):
         """ Generate a new subscription ID for the user's queue. """
         #TODO add auth here too and all other REMOTE_USER instances.
-        import pdb; pdb.set_trace()
         self._init(self.app.config)
         username = self._get_uid(request)
         if username is None:
             raise HTTPUnauthorized()
-        origin = request.params.get('origin', 'UNKNOWN')
         try:
             logger.debug("New subscription request: '%s'", request.body)
             subscription = json.loads(request.body)
         except ValueError, verr:
             if request.params.get('token', None):
-                subscription = {'token': request.params.get('token') }
+                subscription = {'token': args.get('token') }
             else:
                 logger.error("Error parsing subscription JSON  %s" % str(verr))
                 raise HTTPBadRequest("Invalid JSON")
 
-        if 'token' not in subscription or not subscription['token']:
+        if 'token' not in subscription:
             logger.error("Token not specified")
             raise HTTPBadRequest("Need to specify token to create")
+        if 'origin' not in subscription:
+            logger.error("Origin not specified")
+            raise HTTPBadRequest("Missing origin")
 
         # Extract the token as ASCII (Pika doesn't work with Unicode)
         token = subscription['token'].encode('ascii')
@@ -148,7 +150,7 @@ class ClientAgent(BaseController):
 
         try:
             self.msg_backend.create_subscription(username, token, 
-                    origin = origin)
+                    origin = subscription.get('origin'))
             return HTTPOk()
         except:
             logger.error("Error creating subscription.")
@@ -212,27 +214,6 @@ class ClientAgent(BaseController):
             logger.error("Error sending broadcast message to user '%s' [%s]" %
                     (username, str(e)))
             raise HTTPInternalServerError()
-
-    def index(self, request, **kw):
-        self._init(self.app.config)
-        doAuth = len(kw) != 0
-        username = self._get_uid(request, doAuth = doAuth)
-        response = {'username': username }
-        if username is None:
-            # display login page
-           template = self.get_template("not_logged_in")
-        else:
-            self.new_queue(request)
-            template = self.get_template("logged_in")
-            response['user_info'] = self.msg_backend.user_info(username)
-            response['subscriptions'] = self.msg_backend.get_queues(username)
-        content_type = "text/html"  # it's always text/html
-        body = template.render(request = request,
-                                config = self.app.config,
-                                response = response
-                                )
-        return Response(str(body),
-                        content_type = content_type)
 
 """
 def make_client_agent(global_config, **local_config):

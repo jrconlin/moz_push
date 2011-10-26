@@ -41,6 +41,7 @@ from notifserver import VERSION
 from notifserver.controllers.postoffice import PostOfficeController
 from notifserver.controllers.sse import ServerEventController
 from notifserver.controllers.clientagent import ClientAgent
+from notifserver.controllers.uiagent import UIAgent
 from services.wsgiauth import Authentication
 from services.baseapp import set_app, SyncServerApp
 from beaker.middleware import SessionMiddleware
@@ -56,18 +57,20 @@ urls = [
                 'ca', 'new_queue'),
         ('POST', '/%s/new_subscription' % VERSION,
                 'ca', 'new_subscription'),
-        ('POST', '/%s/remove_subscription' % VERSION,
+        (('GET', 'POST'), '/%s/remove_subscription' % VERSION,
                 'ca', 'remove_subscription'),
         (('GET', 'POST'), '/%s/new_token' % VERSION,
                 'ca', 'new_token'),
         ('POST', '/%s/broadcast' % VERSION,
                 'ca', 'broadcast'),
+        ('GET', '/logout', 'ui', 'logout'),
         # Always list the index (least specific path) last
         (('GET', 'POST'), '/', 
-                'ca', 'index'),
+                'ui', 'index'),
         ]
 
 controllers = {'ca': ClientAgent,
+        'ui': UIAgent,
         'po': PostOfficeController,
         'sse': ServerEventController}
 
