@@ -97,8 +97,25 @@ class ClientAgent(BaseController):
             str_params[str(key)] = str(value);
         return str_params
 
-    def new_queue(self, request):
-        """ Create a new queue for the user. (queues hold subscriptions) """
+    def user_queue(self, request):
+        """ Return queue info for the user, creating if necessary 
+            (queues hold subscriptions) 
+        
+        @method POST
+
+        @param request Request object containing "Credentials"
+            where credentials meet the proper authorization
+            module requirements. (e.g. for basic auth, use
+            'username' & 'password', for BrowserID pass
+
+        Users have Queues. 
+        Queues hold subscriptions.
+        Subscriptions hold messages. 
+
+        If a username already has a queue, return that information, otherwise
+        create the new queue and return the new info.
+
+        """
         self._init(self.app.config)
         username = self._get_uid(request)
 
@@ -111,7 +128,14 @@ class ClientAgent(BaseController):
             raise HTTPInternalServerError
 
     def new_token(self, request):
-        """ Create an return a new valid token """
+        """ Create an return a new valid token 
+        
+        @method GET
+
+        @params None
+
+        Returns a string containing the new token.
+        """
         self._init(self.app.config)
         try:
             token = new_token()
@@ -121,8 +145,16 @@ class ClientAgent(BaseController):
             raise HTTPInternalServerError
 
     def new_subscription(self, request):
-        """ Generate a new subscription ID for the user's queue. """
-        #TODO add auth here too and all other REMOTE_USER instances.
+        """ Generate a new subscription ID for the user's queue. 
+        @method POST
+
+        @params request containing 
+                'credentials' -  (see user_queue)
+                token - new subscription to add (use new_token or generate
+                    your own. Please be sure that it's SMTP compliant.)
+                origin - domain name of site for subscription (e.g. 
+                    example.com)
+        """
         self._init(self.app.config)
         username = self._get_uid(request)
         if username is None:
@@ -132,7 +164,7 @@ class ClientAgent(BaseController):
             subscription = json.loads(request.body)
         except ValueError, verr:
             if request.params.get('token', None):
-                subscription = {'token': args.get('token') }
+                subscription = {'token': request.params.get('token') }
             else:
                 logger.error("Error parsing subscription JSON  %s" % str(verr))
                 raise HTTPBadRequest("Invalid JSON")
@@ -157,7 +189,15 @@ class ClientAgent(BaseController):
             raise HTTPInternalServerError()
 
     def remove_subscription(self, request):
-        """ Remove a subscription from a user's queue. """
+        """ deactivate a subscription from a user's queue. 
+        
+
+        @method POST
+        
+        @arguments request containing:
+                    'credentials' - see /user_queue
+                    'token' - subscription token to remove
+        """
         self._init(self.app.config)
         username = self._get_uid(request)
         try:

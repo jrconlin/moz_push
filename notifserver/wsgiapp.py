@@ -52,18 +52,22 @@ urls = [
                 'po', 'post_notification'),
         ('GET', '/%s/feed/{usertoken:[^\/\?\&]+}' % VERSION,
                 'sse', 'handle_feed'),
+        
         ## client api
-        ('POST', '/%s/new_queue' % VERSION,
-                'ca', 'new_queue'),
+        ('POST', '/%s/user_queue' % VERSION,
+                'ca', 'user_queue'),
         ('POST', '/%s/new_subscription' % VERSION,
                 'ca', 'new_subscription'),
-        (('GET', 'POST'), '/%s/remove_subscription' % VERSION,
+        ('POST', '/%s/remove_subscription' % VERSION,
                 'ca', 'remove_subscription'),
-        (('GET', 'POST'), '/%s/new_token' % VERSION,
+        ('GET', '/%s/new_token' % VERSION,
                 'ca', 'new_token'),
         ('POST', '/%s/broadcast' % VERSION,
                 'ca', 'broadcast'),
+
+        # used by the UI only
         ('GET', '/logout', 'ui', 'logout'),
+
         # Always list the index (least specific path) last
         (('GET', 'POST'), '/', 
                 'ui', 'index'),
