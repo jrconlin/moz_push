@@ -20,6 +20,12 @@ env:
 	cd deps && hg clone http://hg.mozilla.org/services/server-core
 	cd deps/server-core && ../../$(PYTHON) setup.py install
 
+install: 
+	mkdir -p /etc/notifserver/
+	cp etc/notifserver/* /etc/notifserver/
+	echo "nginx NOT auto-configured."
+	echo "Please see etc/nginx/nginx.conf.diff for changes."
+
 clean-env:
 	rm -rf bin build deps include lib lib64
 

@@ -1,0 +1,21 @@
+7c7
+< error_log  /var/logs/nginx/error.log info;
+---
+> #error_log  logs/error.log  info;
+36c36
+<         listen       80 default;
+---
+>         listen       80;
+39,40d38
+<         include /etc/nginx/conf.d/*.conf;
+< 
+45,48c43,46
+<        # location / {
+<        #     root   html;
+<        #     index  index.html index.htm;
+<        # }
+---
+>         location / {
+>             root   html;
+>             index  index.html index.htm;
+>         }

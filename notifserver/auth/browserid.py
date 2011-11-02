@@ -21,7 +21,11 @@ class NotifServerAuthentication(object):
     def authenticate_user(self, user_name, password, request = None):
         """ Return a validated user id """
         if password is None:
-            return None
+            # Perhaps the UI folks messed up. Try to get the 
+            # assertion from the arguments.
+            if request.params.get('assertion', None) is None:
+               return None
+            password = request.params.get('assertion')
         try:
             if request:
                 self.environ = request.environ
