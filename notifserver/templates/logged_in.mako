@@ -9,11 +9,15 @@
     import time
 
     response = pageargs.get('response')
+    config = pageargs.get('config', {})
+    request = pageargs.get('request', {})
     username = response.get('username')
+    bihost = config.get('bipostal.mailhost', 'localhost')
+    
     gravatar = "http://www.gravatar.com/avatar/%s?s=%s&d=%s" % \
          (hashlib.md5(username).hexdigest().lower(),
             100,
-            urllib.quote('http://push1.mtv1.dev.svc.mozilla.com/s/default.jpg'))
+            urllib.quote('http://%s/s/default.jpg' % bihost))
     user_info = response.get('user_info')
     auth = response.get('auth')
     queues = response.get('subscriptions')
@@ -35,7 +39,7 @@
 %if queues is not None:
 %for queue in queues.values():
  <div id="${queue.get('queue_id')}" class="subs">
-  <div class="email"><a href="mailto:${queue.get('queue_id')}@push1.mtv1.dev.svc.mozilla.com">${queue.get('queue_id')}@push1.mtv1.dev.svc.mozilla.com</a></div>
+  <div class="email"><a href="mailto:${queue.get('queue_id')}@${bihost}">${queue.get('queue_id')}@${bihost}</a></div>
   <div class="info">
    <div class="site"><b>Site:</b> ${queue.get('origin')}</div>
    <div class="status"><b>Status:</b> ${queue.get('state')}</div>

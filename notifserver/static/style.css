@@ -1,0 +1,40 @@
+body {padding:0;margin:0 auto;text-align:center;font:80% Arial;width:475px;min-height:380px;}
+h1 {margin:0 auto;padding:0;width:100%;font-size:200%}
+h2 {text-align:left; border:1px solid #bbf;border-width:1px 0 0 1px;margin:5px 0 0 0;padding:5px;}
+h3 {text-align:left;}
+.error {display:inline-block; color:red;}
+form {width:475px;text-align:left;margin:0 auto;}
+label {display:inline-block;width:80px;}
+.useDefault { display:none;}
+input {border:1px solid #888; padding:2px;width:255px;}
+input.radio {width:auto;}
+.buttons{margin:0;padding:0;text-align:right;border-top:2px solid #e3ebf3;background:#f4f7fb;display:block;width:100%;padding:5px;height:4em;}
+header{position:fixed;top:0;width:475px;height:9EM;overflow:auto;margin;0;padding:0;background-image:-moz-linear-gradient(#FFF 80%,rgba(255,255,255,0)100%);z-index:100;}
+header img {float:left;}
+footer{position:fixed;bottom:0;width:475px;;height:4EM;margin:0;padding:0;background-image:-moz-linear-gradient(rgba(255,255,255,0) 0%,#FFF 30%,#f4f7fb 30%,#f4f7fb 100%)}
+main{position:relative;display:block;padding:9EM 0;}
+.commands {padding:1em 0;width:475px;}
+.message {text-align:left;}
+.message .email {font-weight:bold;}
+.registered {text-align:left;}
+.registered div {min-height:4EM;}
+.registered div:nth-child(odd) {background:#F8F8F8;}
+.registered .email {padding:8px;font-weight:bold;}
+.registered .meta {float:right;}
+.registered .meta .del {display:block;}
+.registered .meta .date {font:6pt arial; }
+button,.fakebutton {background-image:-moz-linear-gradient(center bottom,#E9E9E9,#FbFbFb);width:100px;padding:2px;margin:2px;display:inline-block;border-radius:5px;border:1px solid #888;}
+button.submit,button.rsubmit {background-image:-moz-linear-gradient(center bottom,#007dd6,#0093fa);color:#FFF;border:0;font-weight:bold;}
+button.go_back {position:relative;left:-120px;}
+.fakebutton {background-color:#CCC;color:black;text-decoration:none;text-align:center;}
+.subs {text-align:left;}
+.subs b {display: inline-block; width:5em; text-align: right;}
+#user p {text-align:left;}
+table.user  {width:100%;background-color:#EEE;}
+table.user th {background-color:#EEE;}
+table.user tr {margin:0;padding:0;}
+table.user td {background-color:#FFF;}
+table.user td.button {width:105px;text-align:center;}
+table.user button {padding:0;margin:0;}
+#unv_emails button {width:8ex;}
+#unv_emails td.button {width:9ex;}

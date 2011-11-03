@@ -112,7 +112,8 @@ class UIAgent(BaseController):
             # display login page
            template = self.get_template("not_logged_in")
         else:
-            self.client_agent.new_queue(request)
+            # Create the user queue if necessary.
+            self.client_agent.user_queue(request)
             template = self.get_template("logged_in")
             response['user_info'] = self.msg_backend.user_info(username)
             response['subscriptions'] = self.msg_backend.get_queues(username)
