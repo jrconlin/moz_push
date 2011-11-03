@@ -39,6 +39,7 @@ import base64
 import cef
 import hmac
 import json
+import logging
 
 
 class JWSException (Exception):
@@ -98,8 +99,7 @@ class JWS:
             return base64.urlsafe_b64decode(_check_b64pad(str(
                 dstr)))
         except TypeError, e:
-            import pdb; pdb.set_trace()
-            print str(dstr);
+            logging.error("Decode error %s [%s]" % (dstr, str(e)));
 
     def parse(self, raw_jws, **kw):
         jwso = json.loads(self._decode(raw_jws))
@@ -122,7 +122,7 @@ class JWS:
     def verify(self, jwso):
         import pdb; pdb.set_trace();
         # TODO: Do verification
-        return True;
+        return True
 
         if not jwso:
             raise (JWSException("Cannot verify empty JWS"))
@@ -139,7 +139,7 @@ class JWS:
                             self._config)
                 raise(JWSException("Unsupported encoding method specified"))
             return sigcheck(alg,
-                            header,
+                            jwso['header'],
                             '%s.%s' % (header_str, payload_str),
                             signature)
         except ValueError, ex:

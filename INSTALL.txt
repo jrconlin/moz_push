@@ -12,11 +12,12 @@ yum install openssl-devel               apt-get install libssl-dev
 yum install redis                       apt-get install redis-server
 yum install nginx                       apt-get install nginx
                                         apt-get install git-core
+                                        apt-get install mercurial
                                         apt-get install curl
                                         apt-get install swig
                                         apt-get install python-dev
 install notifs server
-For Redhat:
+For Redhat only:
 $. bin/activate
 $ sudo yum install openssl-devel
 $ mkdir -p install
@@ -25,25 +26,18 @@ $ curl -O "http://pypi.python.org/packages/source/M/M2Crypto/M2Crypto-0.21.1.tar
 $ tar -zxvf M2Crypto-0.21.1.tar.gz
 $ M2Crypto-0.21.1.tar.gz fedora_setup.py
 
-Consider swapping out M2Crypto for something more sane
-
-For Redhat:
-$. bin/activate
-$ sudo yum install openssl-devel
-$ mkdir -p install
-$ cd install
-$ curl -O "http://pypi.python.org/packages/source/M/M2Crypto/M2Crypto-0.21.1.tar.gz"
-$ tar -zxvf M2Crypto-0.21.1.tar.gz
-$ M2Crypto-0.21.1.tar.gz fedora_setup.py
-
-Consider swapping out M2Crypto for something more sane
+* Consider swapping out M2Crypto for something more sane
 
 start notifserver:
 bin/gunicorn -w1 notifserver.run -t 3000 --log-file - --log-level info
 
 install bipostal
 bin/python src/bipostal.py --config=src/bipostal.ini
+
 bin/python src/bipostmap.py --config=src/bipostmap.ini
+
+update nginx config from ./etc/nginx
+cp ./etc/notifserver to /etc/notifserver
 
 
 PostFix Configuration
