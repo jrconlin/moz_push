@@ -9,7 +9,8 @@ yum install python-setuptools           apt-get install python-setuptools
 yum install postfix                     apt-get install postfix
 yum install db4-devel                   apt-get install libdb4.8++-dev
 yum install openssl-devel               apt-get install libssl-dev
-yum install redis                       apt-get install redis-server
+yum install redis                       apt-get install redis-server*
+ // this package requires redis 2.4.2 or later Ubuntu currently distributes 1.2.0
 yum install nginx                       apt-get install nginx
                                         apt-get install git-core
                                         apt-get install curl
@@ -37,6 +38,10 @@ $ tar -zxvf M2Crypto-0.21.1.tar.gz
 $ M2Crypto-0.21.1.tar.gz fedora_setup.py
 
 Consider swapping out M2Crypto for something more sane
+
+create session dirs
+# mkdir -p -m=777 /tmp/notif_sessions/data
+# mkdir -p -m=777 /tmp/notif_sessions/lock
 
 start notifserver:
 bin/gunicorn -w1 notifserver.run -t 3000 --log-file - --log-level info
