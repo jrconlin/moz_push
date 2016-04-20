@@ -1,6 +1,8 @@
 *****
-NOTE: This code is not yet stable. If you are interested in working with it,
-please contact the author directly (jrconlin@mozilla)
+NOTE: This is no longer actively maintained or correct. There is now a W3C / IETF 
+Web Push protocol specification.  If your interested, please see 
+https://github.com/mozilla-services/push-service/ for how Mozilla has implemented
+a Web Push service.
 *****
 
 
